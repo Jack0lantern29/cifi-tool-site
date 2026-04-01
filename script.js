@@ -168,6 +168,24 @@ function applyFormState_(state) {
   renderFarmMissionSelection_();
 }
 
+function applyZeroDefaults_() {
+  const controls = document.querySelectorAll('#optimizer input[id], #optimizer select[id]');
+
+  controls.forEach((el) => {
+    if (el.type === 'checkbox') {
+      el.checked = false;
+    } else if (el.type === 'number') {
+      el.value = 0;
+    } else if (el.tagName === 'SELECT') {
+      el.selectedIndex = 0;
+    }
+  });
+
+  missionSelectionState = {};
+  syncOuroVisibility();
+  renderFarmMissionSelection_();
+}
+
 function restoreSavedState_() {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
@@ -202,17 +220,24 @@ function resetToDefaults_() {
 }
 
 function initPersistence_() {
+  const restored = restoreSavedState_();
+
+  if (!restored) {
+    applyZeroDefaults_();
+  }
+
   syncOuroVisibility();
   DEFAULT_FORM_STATE = collectFormState_();
-  restoreSavedState_();
 
   const optimizerPanel = document.getElementById('optimizer');
+
   optimizerPanel.addEventListener('input', (event) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) return;
     if (!target.matches('input[id], select[id]')) return;
     saveState_();
   });
+
   optimizerPanel.addEventListener('change', (event) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) return;
@@ -1387,7 +1412,14 @@ function renderResult_(ui, result) {
 function renderError_(err) {
   document.getElementById('campaignEtaText').textContent = '—';
   document.getElementById('modeUsedText').textContent = modeSelect.value;
-  document.getElementById('totalsBody').innerHTML = `<tr><td colspan="2">${err.message}</td></tr>`;
+  const errorCell = document.createElement('td');
+  errorCell.colSpan = 2;
+  errorCell.textContent = err.message;
+  const errorRow = document.createElement('tr');
+  errorRow.appendChild(errorCell);
+  const totalsBody = document.getElementById('totalsBody');
+  totalsBody.innerHTML = '';
+  totalsBody.appendChild(errorRow);
   document.getElementById('distributionBody').innerHTML = '<tr><td colspan="5">No mission distribution available.</td></tr>';
 }
 

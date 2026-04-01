@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CIFI Zues Mission Optimizer</title>
+  <title>CIFI Zeus Mission Optimizer</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -13,7 +13,7 @@
   <header class="site-header">
     <div class="shell header-shell">
       <div class="title-block">
-        <h1>CIFI Zues Mission Optimizer</h1>
+        <h1>CIFI Zeus Mission Optimizer</h1>
         <p class="subtitle">Allocates personnel based on different optimization modes.</p>
         <p class="subsubtitle">Created by Jack0lantern29.</p>
       </div>
@@ -53,8 +53,8 @@
           </div>
 
           <div class="action-group">
-            <button class="action-button action-button--primary" id="runOptimizerBtn">Run Optimizer</button>
-            <button class="action-button" id="resetInputsBtn">Reset Inputs</button>
+            <button class="action-button action-button--primary" id="runOptimizerBtn" type="button">Run Optimizer</button>
+            <button class="action-button" id="resetInputsBtn" type="button">Reset Inputs</button>
           </div>
         </div>
 
@@ -87,23 +87,23 @@
             <tbody>
               <tr>
                 <td>Mining Pod</td>
-                <td><input id="power-mining-pod" type="number" step="0.1" value="0" /></td>
-                <td><input id="count-mining-pod" type="number" step="1" value="0" /></td>
+                <td><input id="power-mining-pod" type="number" step="0.1" min="0" value="0" /></td>
+                <td><input id="count-mining-pod" type="number" step="1" min="0" value="0" /></td>
               </tr>
               <tr>
                 <td>Fireteam Carrier</td>
-                <td><input id="power-fireteam-carrier" type="number" step="0.1" value="0" /></td>
-                <td><input id="count-fireteam-carrier" type="number" step="1" value="0" /></td>
+                <td><input id="power-fireteam-carrier" type="number" step="0.1" min="0" value="0" /></td>
+                <td><input id="count-fireteam-carrier" type="number" step="1" min="0" value="0" /></td>
               </tr>
               <tr>
                 <td>Titan Hauler</td>
-                <td><input id="power-titan-hauler" type="number" step="0.1" value="0" /></td>
-                <td><input id="count-titan-hauler" type="number" step="1" value="0" /></td>
+                <td><input id="power-titan-hauler" type="number" step="0.1" min="0" value="0" /></td>
+                <td><input id="count-titan-hauler" type="number" step="1" min="0" value="0" /></td>
               </tr>
               <tr>
                 <td>Combat Corvette</td>
-                <td><input id="power-combat-corvette" type="number" step="0.1" value="0" /></td>
-                <td><input id="count-combat-corvette" type="number" step="1" value="0" /></td>
+                <td><input id="power-combat-corvette" type="number" step="0.1" min="0" value="0" /></td>
+                <td><input id="count-combat-corvette" type="number" step="1" min="0" value="0" /></td>
               </tr>
             </tbody>
           </table>
@@ -133,7 +133,7 @@
           <p>Enable to optimize both campaign and farm missions based on preferred focus.</p>
         </div>
 
-        <div class="grid grid-4 campaign-grid">
+        <div class="grid grid-4">
           <div class="field-card field-card--checkbox">
             <label class="field-label">Campaign Enabled?</label>
             <label class="checkbox-row">
@@ -146,53 +146,53 @@
             <label class="field-label" for="campaignTarget">Campaign Target</label>
             <select id="campaignTarget">
               <option>C1-1</option>
-<option>C1-2</option>
-<option>C1-3</option>
-<option>C1-4</option>
-<option>C1-5</option>
-<option>C1-6</option>
-<option>C1-7</option>
-<option>C1-8</option>
-<option>C1-9</option>
-<option>C1-10</option>
-<option>C1-11</option>
-<option>C1-12</option>
-<option>C2-1</option>
-<option>C2-2</option>
-<option>C2-3</option>
-<option>C2-4</option>
-<option>C2-5</option>
-<option>C2-6</option>
-<option>C2-7</option>
-<option>C2-8</option>
-<option>C2-9</option>
-<option>C2-10</option>
-<option>C2-11</option>
-<option>C2-12</option>
-<option>C3-1</option>
-<option>C3-2</option>
-<option>C3-3</option>
-<option>C3-4</option>
-<option>C3-5</option>
-<option>C3-6</option>
-<option>C3-7</option>
-<option>C3-8</option>
-<option>C3-9</option>
-<option>C3-10</option>
-<option>C3-11</option>
-<option>C3-12</option>
-<option>C4-1</option>
-<option>C4-2</option>
-<option>C4-3</option>
-<option>C4-4</option>
-<option>C4-5</option>
-<option>C4-6</option>
-<option>C4-7</option>
-<option>C4-8</option>
-<option>C4-9</option>
-<option>C4-10</option>
-<option selected>C4-11</option>
-<option>C4-12</option>
+              <option>C1-2</option>
+              <option>C1-3</option>
+              <option>C1-4</option>
+              <option>C1-5</option>
+              <option>C1-6</option>
+              <option>C1-7</option>
+              <option>C1-8</option>
+              <option>C1-9</option>
+              <option>C1-10</option>
+              <option>C1-11</option>
+              <option>C1-12</option>
+              <option>C2-1</option>
+              <option>C2-2</option>
+              <option>C2-3</option>
+              <option>C2-4</option>
+              <option>C2-5</option>
+              <option>C2-6</option>
+              <option>C2-7</option>
+              <option>C2-8</option>
+              <option>C2-9</option>
+              <option>C2-10</option>
+              <option>C2-11</option>
+              <option>C2-12</option>
+              <option>C3-1</option>
+              <option>C3-2</option>
+              <option>C3-3</option>
+              <option>C3-4</option>
+              <option>C3-5</option>
+              <option>C3-6</option>
+              <option>C3-7</option>
+              <option>C3-8</option>
+              <option>C3-9</option>
+              <option>C3-10</option>
+              <option>C3-11</option>
+              <option>C3-12</option>
+              <option>C4-1</option>
+              <option>C4-2</option>
+              <option>C4-3</option>
+              <option>C4-4</option>
+              <option>C4-5</option>
+              <option>C4-6</option>
+              <option>C4-7</option>
+              <option>C4-8</option>
+              <option>C4-9</option>
+              <option>C4-10</option>
+              <option selected>C4-11</option>
+              <option>C4-12</option>
             </select>
           </div>
 
@@ -207,7 +207,7 @@
 
           <div class="field-card ouro-only">
             <label class="field-label" for="relic11">T1 Relic 11 Level</label>
-            <input id="relic11" type="number" step="1" value="0" />
+            <input id="relic11" type="number" step="1" min="0" value="0" />
             <p class="tiny-note">Adjusts campaign mission caps.</p>
           </div>
         </div>
@@ -216,7 +216,7 @@
       <section id="resources" class="content-card">
         <div class="card-header">
           <h2>Resources</h2>
-          <p>The optimizer will sacrifice some of its effciency to focus on any boosted materials.</p>
+          <p>The optimizer will sacrifice some of its efficiency to focus on any boosted materials.</p>
         </div>
 
         <div class="table-wrap">
@@ -250,7 +250,7 @@
         <div class="grid grid-1">
           <div class="field-card">
             <label class="field-label" for="baseFragmentsInput">Base Fragments / Completion (est.)</label>
-            <input id="baseFragmentsInput" type="number" step="0.0001" value="0.0000" />
+            <input id="baseFragmentsInput" type="number" step="0.0001" min="0" value="0.0000" />
           </div>
         </div>
       </section>
@@ -261,7 +261,7 @@
           <p>Fill in obtained upgrades to adjust for mission speed.</p>
         </div>
 
-        <div class="grid grid-4 campaign-grid">
+        <div class="grid grid-4">
           <div class="field-card field-card--checkbox">
             <label class="field-label">Engineering Badge?</label>
             <label class="checkbox-row">
@@ -272,32 +272,32 @@
 
           <div class="field-card">
             <label class="field-label" for="swarmLevel">Ultima: Rule of the Swarm Level</label>
-            <input id="swarmLevel" type="number" step="1" value="0" />
+            <input id="swarmLevel" type="number" step="1" min="0" value="0" />
           </div>
 
           <div class="field-card">
             <label class="field-label" for="productivityLevel">Ultima: Rule of Productivity Level</label>
-            <input id="productivityLevel" type="number" step="1" value="0" />
+            <input id="productivityLevel" type="number" step="1" min="0" value="0" />
           </div>
 
           <div class="field-card">
             <label class="field-label" for="research58">Research 58 Level</label>
-            <input id="research58" type="number" step="1" value="0" />
+            <input id="research58" type="number" step="1" min="0" value="0" />
           </div>
 
           <div class="field-card">
             <label class="field-label" for="research70">Research 70 Level</label>
-            <input id="research70" type="number" step="1" value="0" />
+            <input id="research70" type="number" step="1" min="0" value="0" />
           </div>
 
           <div class="field-card">
             <label class="field-label" for="research80">Research 80 Level</label>
-            <input id="research80" type="number" step="1" value="0" />
+            <input id="research80" type="number" step="1" min="0" value="0" />
           </div>
 
           <div class="field-card ouro-only">
             <label class="field-label" for="relic3">T1 Relic 3 Level</label>
-            <input id="relic3" type="number" step="1" value="30" />
+            <input id="relic3" type="number" step="1" min="0" value="30" />
           </div>
 
           <div class="field-card ouro-only field-card--checkbox">
@@ -378,7 +378,6 @@
             <p><b>Academy Points</b> — focuses on maximising Academy Point income.</p>
             <p><b>Max Completions</b> — focuses on achieving the highest possible number of mission completions.</p>
           </div>
-          </div>
         </div>
       </div>
     </section>
@@ -394,7 +393,6 @@
           <div class="changelog-item">
             <span class="tag">v2.0 Web Launch</span>
             <p>Installed the previous spreadsheet optimizer into the website format.</p>
-          </div>
           </div>
         </div>
       </div>

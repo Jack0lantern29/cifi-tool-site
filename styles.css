@@ -1,4 +1,4 @@
- :root {
+:root {
   --bg: #03070f;
   --bg-2: #071426;
   --panel: #141d44;
@@ -171,7 +171,6 @@ body {
   display: block;
   flex: 0 0 auto;
   accent-color: var(--gold);
-  vertical-align: middle;
 }
 
 .section-jumps {
@@ -301,7 +300,6 @@ select:focus {
   display: block;
   flex: 0 0 auto;
   accent-color: var(--emerald);
-  vertical-align: middle;
 }
 
 .table-wrap {
@@ -519,10 +517,6 @@ select:focus {
   margin-top: 2px;
 }
 
-.campaign-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
 
 .summary-grid .field-card {
   min-height: 104px;
@@ -542,16 +536,9 @@ select:focus {
   line-height: 1.4;
 }
 
-.output-totals-table td:first-child,
-.output-debug-table td:first-child {
+.output-totals-table td:first-child {
   font-weight: 700;
   color: #f4f7ff;
-}
-
-.output-assignments-table td:nth-child(3),
-.output-totals-table td:nth-child(2),
-.output-debug-table td:nth-child(2) {
-  text-align: right;
 }
 
 #statusText {
@@ -691,13 +678,6 @@ select:focus {
 
 .zero-cell {
   color: rgba(204, 212, 255, 0.7);
-}
-
-.output-distribution-table td:nth-child(n+2),
-.output-distribution-table th:nth-child(n+2),
-.output-totals-table td:nth-child(2),
-.output-totals-table th:nth-child(2) {
-  text-align: right;
 }
 
 @media (max-width: 860px) {
