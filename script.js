@@ -8,8 +8,76 @@ const TYPE_RANK = {
   "Combat Corvette": 4
 };
 
-const MISSION_DATA = [{"name":"F1-1","minutes":30.0,"cap":20,"academy":5.0,"fragments":0.0,"rewards":{"Difar":38.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"F1-2","minutes":360.0,"cap":60,"academy":150.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":320.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"F1-3","minutes":2400.0,"cap":100,"academy":1200.0,"fragments":0.0,"rewards":{"Difar":1350.0,"Kento":280.0,"Chromium":760.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"F1-4","minutes":6000.0,"cap":120,"academy":0.0,"fragments":0.0061,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"F2-1","minutes":150.0,"cap":80,"academy":35.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":35.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"F2-2","minutes":2400.0,"cap":160,"academy":170.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":560.0,"Exon":0.0,"Organium":80.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"F2-3","minutes":72000.0,"cap":500,"academy":11500.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":2200.0,"Organium":320.0,"Adamorphium":260.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"F2-4","minutes":132000.0,"cap":1000,"academy":0.0,"fragments":0.0061,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"F3-1","minutes":3000.0,"cap":150,"academy":2000.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":19.0,"Darkseid":0.0}},{"name":"F3-2","minutes":975000.0,"cap":2000,"academy":1000000.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":80.0}},{"name":"F3-3","minutes":1875000.0,"cap":4000,"academy":2000000.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":5200.0,"Adamorphium":2440.0,"Moskom":4000.0,"Darkseid":160.0}},{"name":"F3-4","minutes":3900000.0,"cap":8000,"academy":0.0,"fragments":0.0061,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"F4-1","minutes":21000.0,"cap":1000,"academy":17000.0,"fragments":0.0,"rewards":{"Difar":40.0,"Kento":60.0,"Chromium":0.0,"Exon":0.0,"Organium":50.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"F4-2","minutes":4875000.0,"cap":10000,"academy":3300000.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":8000.0,"Exon":0.0,"Organium":0.0,"Adamorphium":7000.0,"Moskom":0.0,"Darkseid":2000.0}},{"name":"F4-3","minutes":9750000.0,"cap":20000,"academy":6700000.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":30000.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":20000.0,"Darkseid":5000.0}},{"name":"F4-4","minutes":19500000.0,"cap":40000,"academy":0.0,"fragments":0.0061,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C1-1","minutes":5.0,"cap":10,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C1-2","minutes":30.0,"cap":20,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C1-3","minutes":900.0,"cap":40,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C1-4","minutes":2400.0,"cap":60,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C1-5","minutes":7800.0,"cap":80,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C1-6","minutes":16200.0,"cap":120,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C1-7","minutes":36600.0,"cap":140,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C1-8","minutes":90000.0,"cap":200,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C1-9","minutes":192000000.0,"cap":1500,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C1-10","minutes":288000000.0,"cap":2000,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C1-11","minutes":426000000.0,"cap":2500,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C1-12","minutes":852000000.0,"cap":3000,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C2-1","minutes":150000.0,"cap":200,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C2-2","minutes":195000.0,"cap":240,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C2-3","minutes":270000.0,"cap":280,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C2-4","minutes":405000.0,"cap":320,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C2-5","minutes":480000.0,"cap":360,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C2-6","minutes":570000.0,"cap":400,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C2-7","minutes":840000.0,"cap":600,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C2-8","minutes":3600000.0,"cap":1000,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C2-9","minutes":576000000.0,"cap":3000,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C2-10","minutes":1128000000.0,"cap":6000,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C2-11","minutes":2184000000.0,"cap":12000,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C2-12","minutes":6552000000.0,"cap":24000,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C3-1","minutes":3000000.0,"cap":1000,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C3-2","minutes":4500000.0,"cap":1200,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C3-3","minutes":6000000.0,"cap":1400,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C3-4","minutes":7500000.0,"cap":1600,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C3-5","minutes":9000000.0,"cap":1800,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C3-6","minutes":10500000.0,"cap":2000,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C3-7","minutes":24000000.0,"cap":2200,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C3-8","minutes":45000000.0,"cap":2400,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C3-9","minutes":5760000000.0,"cap":17500,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C3-10","minutes":11280000000.0,"cap":35000,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C3-11","minutes":15780000000.0,"cap":60000,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C3-12","minutes":29280000000.0,"cap":70000,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C4-1","minutes":144000000.0,"cap":5600,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C4-2","minutes":195000000.0,"cap":6000,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C4-3","minutes":240000000.0,"cap":7200,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C4-4","minutes":300000000.0,"cap":7800,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C4-5","minutes":390000000.0,"cap":8400,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C4-6","minutes":660000000.0,"cap":9000,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C4-7","minutes":900000000.0,"cap":9600,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C4-8","minutes":1920000000.0,"cap":10000,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C4-9","minutes":57600000000.0,"cap":60000,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C4-10","minutes":172800000000.0,"cap":100000,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C4-11","minutes":518400000000.0,"cap":140000,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C4-12","minutes":2155196371763.288,"cap":180000,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}}];
-
+const MISSION_DATA = [{"name":"F1-1","minutes":30.0,"cap":20,"academy":5.0,"fragments":0.0,"rewards":{"Difar":38.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"F1-2","minutes":360.0,"cap":60,"academy":150.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":320.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"F1-3","minutes":2400.0,"cap":100,"academy":1200.0,"fragments":0.0,"rewards":{"Difar":1350.0,"Kento":280.0,"Chromium":760.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"F1-4","minutes":6000.0,"cap":120,"academy":0.0,"fragments":0.0061,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"F2-1","minutes":150.0,"cap":80,"academy":35.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":35.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"F2-2","minutes":2400.0,"cap":160,"academy":170.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":560.0,"Exon":0.0,"Organium":80.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"F2-3","minutes":72000.0,"cap":500,"academy":11500.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":2200.0,"Organium":320.0,"Adamorphium":260.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"F2-4","minutes":132000.0,"cap":1000,"academy":0.0,"fragments":0.0061,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"F3-1","minutes":3000.0,"cap":150,"academy":2000.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":19.0,"Darkseid":0.0}},
+  {"name":"F3-2","minutes":975000.0,"cap":2000,"academy":1000000.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":80.0}},
+  {"name":"F3-3","minutes":1875000.0,"cap":4000,"academy":2000000.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":5200.0,"Adamorphium":2440.0,"Moskom":4000.0,"Darkseid":160.0}},
+  {"name":"F3-4","minutes":3900000.0,"cap":8000,"academy":0.0,"fragments":0.0061,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"F4-1","minutes":21000.0,"cap":1000,"academy":17000.0,"fragments":0.0,"rewards":{"Difar":40.0,"Kento":60.0,"Chromium":0.0,"Exon":0.0,"Organium":50.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"F4-2","minutes":4875000.0,"cap":10000,"academy":3300000.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":8000.0,"Exon":0.0,"Organium":0.0,"Adamorphium":7000.0,"Moskom":0.0,"Darkseid":2000.0}},
+  {"name":"F4-3","minutes":9750000.0,"cap":20000,"academy":6700000.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":30000.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":20000.0,"Darkseid":5000.0}},
+  {"name":"F4-4","minutes":19500000.0,"cap":40000,"academy":0.0,"fragments":0.0061,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"C1-1","minutes":5.0,"cap":5,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"C1-2","minutes":30.0,"cap":10,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"C1-3","minutes":900.0,"cap":20,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"C1-4","minutes":2400.0,"cap":30,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"C1-5","minutes":7800.0,"cap":40,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"C1-6","minutes":16200.0,"cap":60,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"C1-7","minutes":36600.0,"cap":70,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"C1-8","minutes":90000.0,"cap":100,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"C1-9","minutes":192000000.0,"cap":750,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"C1-10","minutes":288000000.0,"cap":1000,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"C1-11","minutes":426000000.0,"cap":1250,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"C1-12","minutes":852000000.0,"cap":1500,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"C2-1","minutes":150000.0,"cap":100,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"C2-2","minutes":195000.0,"cap":120,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"C2-3","minutes":270000.0,"cap":140,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"C2-4","minutes":405000.0,"cap":160,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"C2-5","minutes":480000.0,"cap":180,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"C2-6","minutes":570000.0,"cap":200,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"C2-7","minutes":840000.0,"cap":300,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"C2-8","minutes":3600000.0,"cap":500,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"C2-9","minutes":576000000.0,"cap":1500,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"C2-10","minutes":1128000000.0,"cap":3000,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"C2-11","minutes":2184000000.0,"cap":6000,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"C2-12","minutes":6552000000.0,"cap":12000,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"C3-1","minutes":3000000.0,"cap":500,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"C3-2","minutes":4500000.0,"cap":600,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"C3-3","minutes":6000000.0,"cap":700,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"C3-4","minutes":7500000.0,"cap":800,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"C3-5","minutes":9000000.0,"cap":900,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"C3-6","minutes":10500000.0,"cap":1000,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"C3-7","minutes":24000000.0,"cap":1100,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"C3-8","minutes":45000000.0,"cap":1200,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"C3-9","minutes":5760000000.0,"cap":8750,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"C3-10","minutes":11280000000.0,"cap":17500,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"C3-11","minutes":15780000000.0,"cap":30000,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"C3-12","minutes":29280000000.0,"cap":35000,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"C4-1","minutes":144000000.0,"cap":2800,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"C4-2","minutes":195000000.0,"cap":3000,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"C4-3","minutes":240000000.0,"cap":3600,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"C4-4","minutes":300000000.0,"cap":3900,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"C4-5","minutes":390000000.0,"cap":4200,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"C4-6","minutes":660000000.0,"cap":4500,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"C4-7","minutes":900000000.0,"cap":4800,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"C4-8","minutes":1920000000.0,"cap":5000,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"C4-9","minutes":57600000000.0,"cap":30000,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"C4-10","minutes":172800000000.0,"cap":50000,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"C4-11","minutes":518400000000.0,"cap":70000,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},
+  {"name":"C4-12","minutes":2155196371763.288,"cap":90000,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}}];
+const CAMPAIGN_BASE_CAPS = {};
+MISSION_DATA.forEach(row => {
+  if (/^C\d+-\d+$/i.test(row.name)) {
+    CAMPAIGN_BASE_CAPS[row.name] = row.cap;
+  }
+});
 const OURO_OFF_VISIBLE_FARMS = new Set(["F1-1","F1-2","F1-3","F2-1","F2-2","F2-3","F3-1","F3-2","F3-3"]);
 const OURO_OFF_VISIBLE_CAMPAIGNS = new Set([
   "C1-9","C1-10","C1-11","C1-12",
@@ -30,11 +98,16 @@ const MULTISTART_MIN_RUNS = 3;
 const MULTISTART_MAX_RUNS = 7;
 const MULTISTART_STALE_LIMIT = 2;
 const MULTISTART_TOP_K = 3;
-const LOCAL_POLISH_MAX_PASSES = 2;
-const LOCAL_POLISH_MAX_MOVES = 30;
+const LOCAL_POLISH_MAX_PASSES = 5;
+const LOCAL_POLISH_MAX_MOVES = 100;
 const TYPE_REBUILD_MAX_UNITS = 8;
 const FRAGMENT_SHORTLIST_SIZE = 6;
 const RESOURCE_SHORTLIST_SIZE = 6;
+const SA_INITIAL_TEMP = 1.0;
+const SA_COOLING_RATE = 0.995;
+const SA_MIN_TEMP = 0.001;
+const SA_MAX_ITERATIONS = 2000;
+const SA_SWAP_PROBABILITY = 0.35;
 
 const tabButtons = document.querySelectorAll('.tab-button');
 const tabPanels = document.querySelectorAll('.tab-panel');
@@ -437,8 +510,23 @@ function getUiState_() {
     campaignEnabled: document.getElementById('campaignEnabled').checked,
     campaignTargetName: document.getElementById('campaignTarget').value,
     campaignFocus: document.getElementById('campaignFocus').value,
+    relic11Level: parseInt(document.getElementById('relic11').value || '0', 10) || 0,
     globalSpeedMult: getGlobalSpeedMultiplierFromUi_()
   };
+}
+
+function getCampaignRelic11Multiplier_(ui) {
+  if (!ui.ouroUnlocked) return 1;
+
+  const relicLevel = Math.max(0, ui.relic11Level || 0);
+  return 1 + (relicLevel * 0.5);
+}
+
+function getEffectiveCampaignCap_(missionName, ui) {
+  const baseCap = CAMPAIGN_BASE_CAPS[missionName];
+  if (baseCap == null) return null;
+
+  return Math.round(baseCap * getCampaignRelic11Multiplier_(ui));
 }
 
 function buildMissionPool_(ui) {
@@ -461,10 +549,19 @@ function buildMissionPool_(ui) {
       return;
     }
 
+    const baseCap = isCampaignRow
+      ? (CAMPAIGN_BASE_CAPS[row.name] ?? row.cap)
+      : row.cap;
+
+    const effectiveCap = isCampaignRow
+      ? getEffectiveCampaignCap_(row.name, ui)
+      : row.cap;
+
     const mission = {
       id: missions.length,
       name: row.name,
-      cap: row.cap,
+      baseCap,
+      cap: effectiveCap,
       baseMins: row.minutes,
       baseAcademy: row.academy || 0,
       baseFragments: row.fragments || 0,
@@ -474,6 +571,7 @@ function buildMissionPool_(ui) {
       currentPower: 0,
       currentRunsPerHour: 0
     };
+
     missions.push(mission);
 
     if (ui.campaignEnabled && row.name === ui.campaignTargetName) {
@@ -825,9 +923,12 @@ function solveOptimizer_(ui, missions, campaignMission) {
       return cand.resourceUtility > incumbent.resourceUtility + EPS;
     }
     if (isFragResMode) {
-      if (cand.fragments > incumbent.fragments + EPS) return true;
-      if (cand.fragments < incumbent.fragments - EPS) return false;
-      return cand.resourceUtility > incumbent.resourceUtility + EPS;
+      const FRAG_WEIGHT = 0.75;
+      const RES_WEIGHT  = 0.25;
+      const candScore = FRAG_WEIGHT * (cand.fragments / Math.max(incumbent.fragments, EPS))
+                      + RES_WEIGHT  * (cand.resourceUtility / Math.max(incumbent.resourceUtility, EPS));
+      if (Math.abs(candScore - 1.0) > EPS) return candScore > 1.0;
+      return cand.completions > incumbent.completions + EPS;
     }
     return cand.completions > incumbent.completions + EPS;
   }
@@ -1051,9 +1152,11 @@ function solveOptimizer_(ui, missions, campaignMission) {
 
   function polishFarmSolution_() {
     let movesMade = 0;
+
     for (let pass = 0; pass < LOCAL_POLISH_MAX_PASSES; pass++) {
       let improved = false;
-      outerLoop:
+
+      singleMoveLoop:
       for (let mi = 0; mi < missions.length; mi++) {
         const fromMission = missions[mi];
         if (fromMission.isCampaign) continue;
@@ -1078,8 +1181,7 @@ function solveOptimizer_(ui, missions, campaignMission) {
 
           for (let mj = 0; mj < missions.length; mj++) {
             const toMission = missions[mj];
-            if (toMission.isCampaign) continue;
-            if (toMission.name === fromMission.name) continue;
+            if (toMission.isCampaign || toMission.name === fromMission.name) continue;
 
             const add = getFarmAddMetrics(toMission, type);
             if (!add) continue;
@@ -1109,10 +1211,92 @@ function solveOptimizer_(ui, missions, campaignMission) {
             improved = true;
             movesMade++;
             if (movesMade >= LOCAL_POLISH_MAX_MOVES) return;
-            break outerLoop;
+            break singleMoveLoop;
           }
         }
       }
+
+      twoOptLoop:
+      for (let ai = 0; ai < missions.length; ai++) {
+        const missionA = missions[ai];
+        if (missionA.isCampaign) continue;
+
+        for (let bi = ai + 1; bi < missions.length; bi++) {
+          const missionB = missions[bi];
+          if (missionB.isCampaign) continue;
+
+          for (let ti = 0; ti < TYPE_ORDER.length; ti++) {
+            const typeT = TYPE_ORDER[ti];
+            const cntT = missionWorkerCounts[missionA.name][typeT] || 0;
+            if (cntT <= 0) continue;
+
+            for (let ui2 = 0; ui2 < TYPE_ORDER.length; ui2++) {
+              const typeU = TYPE_ORDER[ui2];
+              const cntU = missionWorkerCounts[missionB.name][typeU] || 0;
+              if (cntU <= 0) continue;
+
+              if (typeT === typeU) continue;
+
+              if (missionB.assignedUnits >= missionB.cap &&
+                  missionWorkerCounts[missionB.name][typeT] === 0) continue;
+              if (missionA.assignedUnits >= missionA.cap &&
+                  missionWorkerCounts[missionA.name][typeU] === 0) continue;
+
+              const baseSnap = snapshotState_();
+              const baseSummary = getSolutionSummary_();
+
+              const remT = getFarmRemoveMetrics(missionA, typeT);
+              if (!remT) continue;
+              removeWorkerFromMission(missionA, typeT);
+              addAssignment(missionA.name, typeT, -1);
+              workers[typeT].count++;
+              removeFarmContributionFromTotals(missionA, remT.deltaRunsLoss);
+
+              const remU = getFarmRemoveMetrics(missionB, typeU);
+              if (!remU) {
+                restoreState_(baseSnap);
+                continue;
+              }
+              removeWorkerFromMission(missionB, typeU);
+              addAssignment(missionB.name, typeU, -1);
+              workers[typeU].count++;
+              removeFarmContributionFromTotals(missionB, remU.deltaRunsLoss);
+
+              const addT = getFarmAddMetrics(missionB, typeT);
+              if (!addT) {
+                restoreState_(baseSnap);
+                continue;
+              }
+              addWorkerToMission(missionB, typeT);
+              addAssignment(missionB.name, typeT, 1);
+              workers[typeT].count--;
+              addFarmContributionToTotals(missionB, addT.deltaRuns);
+
+              const addU = getFarmAddMetrics(missionA, typeU);
+              if (!addU) {
+                restoreState_(baseSnap);
+                continue;
+              }
+              addWorkerToMission(missionA, typeU);
+              addAssignment(missionA.name, typeU, 1);
+              workers[typeU].count--;
+              addFarmContributionToTotals(missionA, addU.deltaRuns);
+
+              const candSummary = getSolutionSummary_();
+
+              if (isSummaryBetter_(candSummary, baseSummary)) {
+                improved = true;
+                movesMade++;
+                if (movesMade >= LOCAL_POLISH_MAX_MOVES) return;
+                break twoOptLoop;
+              } else {
+                restoreState_(baseSnap);
+              }
+            }
+          }
+        }
+      }
+
       if (!improved) break;
     }
   }
@@ -1265,6 +1449,179 @@ function solveOptimizer_(ui, missions, campaignMission) {
       }
     }
   }
+  function simulatedAnnealingPolish_() {
+    const farmMissions = missions.filter(m => !m.isCampaign);
+    if (farmMissions.length < 2) return;
+
+    function scalarScore() {
+      const s = getSolutionSummary_();
+      if (isResourcesMode) return s.resourceUtility + 0.001 * s.fragments;
+      if (isAcademyMode)   return s.academy + 0.001 * s.completions;
+      if (isMaxCompMode)   return s.completions + 0.001 * s.fragments;
+      if (isFragmentsMode) return s.fragments * 1000 + 0.001 * s.resourceUtility;
+      if (isFragResMode)   return 0.75 * s.fragments * 1000 + 0.25 * s.resourceUtility;
+      return s.completions;
+    }
+
+    function randChoice(arr) {
+      return arr[Math.floor(Math.random() * arr.length)];
+    }
+
+    function randTypeOnMission(mission) {
+      const types = TYPE_ORDER.filter(
+        t => (missionWorkerCounts[mission.name][t] || 0) > 0
+      );
+      return types.length > 0 ? randChoice(types) : null;
+    }
+
+    function tryNeighborRelocate() {
+      const occupied = farmMissions.filter(m => m.assignedUnits > 0);
+      if (occupied.length === 0) return false;
+      const from = randChoice(occupied);
+      const type = randTypeOnMission(from);
+      if (!type) return false;
+      const candidates = farmMissions.filter(
+        m => m.name !== from.name && m.assignedUnits < m.cap
+      );
+      if (candidates.length === 0) return false;
+      const to = randChoice(candidates);
+      const rem = getFarmRemoveMetrics(from, type);
+      if (!rem) return false;
+      removeWorkerFromMission(from, type);
+      addAssignment(from.name, type, -1);
+      workers[type].count++;
+      removeFarmContributionFromTotals(from, rem.deltaRunsLoss);
+      const add = getFarmAddMetrics(to, type);
+      if (!add) {
+        addWorkerToMission(from, type);
+        addAssignment(from.name, type, 1);
+        workers[type].count--;
+        addFarmContributionToTotals(from, rem.deltaRunsLoss);
+        return false;
+      }
+      addWorkerToMission(to, type);
+      addAssignment(to.name, type, 1);
+      workers[type].count--;
+      addFarmContributionToTotals(to, add.deltaRuns);
+      return true;
+    }
+
+    function tryNeighborSwap() {
+      const occupied = farmMissions.filter(m => m.assignedUnits > 0);
+      if (occupied.length < 2) return false;
+      const mA = randChoice(occupied);
+      const typeT = randTypeOnMission(mA);
+      if (!typeT) return false;
+      const candidates = occupied.filter(m => {
+        if (m.name === mA.name) return false;
+        return TYPE_ORDER.some(
+          t => t !== typeT && (missionWorkerCounts[m.name][t] || 0) > 0
+        );
+      });
+      if (candidates.length === 0) return false;
+      const mB = randChoice(candidates);
+      const swappableTypes = TYPE_ORDER.filter(
+        t => t !== typeT && (missionWorkerCounts[mB.name][t] || 0) > 0
+      );
+      if (swappableTypes.length === 0) return false;
+      const typeU = randChoice(swappableTypes);
+
+      const remT = getFarmRemoveMetrics(mA, typeT);
+      if (!remT) return false;
+      removeWorkerFromMission(mA, typeT);
+      addAssignment(mA.name, typeT, -1);
+      workers[typeT].count++;
+      removeFarmContributionFromTotals(mA, remT.deltaRunsLoss);
+
+      const remU = getFarmRemoveMetrics(mB, typeU);
+      if (!remU) {
+        addWorkerToMission(mA, typeT);
+        addAssignment(mA.name, typeT, 1);
+        workers[typeT].count--;
+        addFarmContributionToTotals(mA, remT.deltaRunsLoss);
+        return false;
+      }
+      removeWorkerFromMission(mB, typeU);
+      addAssignment(mB.name, typeU, -1);
+      workers[typeU].count++;
+      removeFarmContributionFromTotals(mB, remU.deltaRunsLoss);
+
+      const addT = getFarmAddMetrics(mB, typeT);
+      if (!addT) {
+        addWorkerToMission(mB, typeU);
+        addAssignment(mB.name, typeU, 1);
+        workers[typeU].count--;
+        addFarmContributionToTotals(mB, remU.deltaRunsLoss);
+        addWorkerToMission(mA, typeT);
+        addAssignment(mA.name, typeT, 1);
+        workers[typeT].count--;
+        addFarmContributionToTotals(mA, remT.deltaRunsLoss);
+        return false;
+      }
+      addWorkerToMission(mB, typeT);
+      addAssignment(mB.name, typeT, 1);
+      workers[typeT].count--;
+      addFarmContributionToTotals(mB, addT.deltaRuns);
+
+      const addU = getFarmAddMetrics(mA, typeU);
+      if (!addU) {
+        const undoT = getFarmRemoveMetrics(mB, typeT);
+        if (undoT) {
+          removeWorkerFromMission(mB, typeT);
+          addAssignment(mB.name, typeT, -1);
+          workers[typeT].count++;
+          removeFarmContributionFromTotals(mB, undoT.deltaRunsLoss);
+        }
+        addWorkerToMission(mB, typeU);
+        addAssignment(mB.name, typeU, 1);
+        workers[typeU].count--;
+        addFarmContributionToTotals(mB, remU.deltaRunsLoss);
+        addWorkerToMission(mA, typeT);
+        addAssignment(mA.name, typeT, 1);
+        workers[typeT].count--;
+        addFarmContributionToTotals(mA, remT.deltaRunsLoss);
+        return false;
+      }
+      addWorkerToMission(mA, typeU);
+      addAssignment(mA.name, typeU, 1);
+      workers[typeU].count--;
+      addFarmContributionToTotals(mA, addU.deltaRuns);
+      return true;
+    }
+
+    let temperature = SA_INITIAL_TEMP;
+    let currentScore = scalarScore();
+    let bestSnap = snapshotState_();
+    let bestScore = currentScore;
+
+    for (let iter = 0; iter < SA_MAX_ITERATIONS; iter++) {
+      const beforeSnap = snapshotState_();
+      const beforeScore = currentScore;
+      let moved;
+      if (Math.random() < SA_SWAP_PROBABILITY) {
+        moved = tryNeighborSwap();
+      } else {
+        moved = tryNeighborRelocate();
+      }
+      if (!moved) continue;
+      const neighborScore = scalarScore();
+      const delta = neighborScore - beforeScore;
+      if (delta > 0 || Math.random() < Math.exp(delta / temperature)) {
+        currentScore = neighborScore;
+        if (currentScore > bestScore) {
+          bestSnap = snapshotState_();
+          bestScore = currentScore;
+        }
+      } else {
+        restoreState_(beforeSnap);
+        currentScore = beforeScore;
+      }
+      temperature *= SA_COOLING_RATE;
+      if (temperature < SA_MIN_TEMP) break;
+    }
+
+    restoreState_(bestSnap);
+  }
 
   seedCampaignWithOneWorker_();
   const emptySnap = snapshotState_();
@@ -1305,22 +1662,24 @@ function solveOptimizer_(ui, missions, campaignMission) {
   function chooseBestRun_(results) {
     if (!results || results.length === 0) return null;
     if (isFragResMode) {
-      let bestFragments = 0;
+      const FRAG_WEIGHT = 0.75;
+      const RES_WEIGHT  = 0.25;
+      let maxFrag = EPS;
+      let maxRes  = EPS;
       results.forEach(r => {
-        if (r.summary.fragments > bestFragments) bestFragments = r.summary.fragments;
+        if (r.summary.fragments > maxFrag) maxFrag = r.summary.fragments;
+        if (r.summary.resourceUtility > maxRes) maxRes = r.summary.resourceUtility;
       });
-      const threshold = bestFragments * 0.95;
-      const inBand = results.filter(r => r.summary.fragments + EPS >= threshold);
-      inBand.sort((a, b) => {
-        const du = b.summary.resourceUtility - a.summary.resourceUtility;
-        if (Math.abs(du) > EPS) return du;
-        const df = b.summary.fragments - a.summary.fragments;
-        if (Math.abs(df) > EPS) return df;
-        const dc = b.summary.completions - a.summary.completions;
-        if (Math.abs(dc) > EPS) return dc;
-        return b.summary.academy - a.summary.academy;
+      results.sort((a, b) => {
+        const scoreA = FRAG_WEIGHT * (a.summary.fragments / maxFrag)
+                    + RES_WEIGHT  * (a.summary.resourceUtility / maxRes);
+        const scoreB = FRAG_WEIGHT * (b.summary.fragments / maxFrag)
+                    + RES_WEIGHT  * (b.summary.resourceUtility / maxRes);
+        const ds = scoreB - scoreA;
+        if (Math.abs(ds) > EPS) return ds;
+        return b.summary.completions - a.summary.completions;
       });
-      return inBand[0] || results[0];
+      return results[0];
     }
     let best = results[0];
     for (let i = 1; i < results.length; i++) {
@@ -1336,7 +1695,7 @@ function solveOptimizer_(ui, missions, campaignMission) {
     polishByWorkerType_();
     polishFarmSolution_();
   }
-
+  simulatedAnnealingPolish_();
   const assignments = getAssignmentsArray_().sort((a, b) => {
     const nameComp = a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
     if (nameComp !== 0) return nameComp;
