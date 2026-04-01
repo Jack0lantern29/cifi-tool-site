@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CIFI Zues Mission Optimizer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="shell header-shell">
+      <div class="title-block">
+        <h1>CIFI Zues Mission Optimizer</h1>
+        <p class="subtitle">Allocates personnel based on different optimization modes.</p>
+        <p class="subsubtitle">Created by Jack0lantern29.</p>
+      </div>
+    </div>
+  </header>
+
+  <nav class="site-nav">
+    <div class="shell nav-shell">
+      <button class="tab-button active" data-tab="optimizer">Optimizer</button>
+      <button class="tab-button" data-tab="faq">FAQ</button>
+      <button class="tab-button" data-tab="credits">Credits and Changelog</button>
+    </div>
+  </nav>
+
+  <main class="shell main-shell">
+    <section id="optimizer" class="tab-panel active">
+      <section class="content-card ouro-control-card">
+        <div class="ouro-control-row">
+          <label class="ouro-toggle">
+            <input type="checkbox" id="ouroToggle" />
+            <span>Ouroboros Unlocked?</span>
+          </label>
+        </div>
+      </section>
+
+      <div class="top-control-bar top-control-bar--stacked">
+        <div class="run-controls">
+          <div class="inline-field">
+            <label class="field-label compact" for="modeSelect">Mode</label>
+            <select id="modeSelect">
+              <option selected>Fragments + Resources</option>
+              <option>Fragments</option>
+              <option>Maximising Resources</option>
+              <option>Academy Points</option>
+              <option>Max Completions</option>
+            </select>
+          </div>
+
+          <div class="action-group">
+            <button class="action-button action-button--primary" id="runOptimizerBtn">Run Optimizer</button>
+            <button class="action-button" id="resetInputsBtn">Reset Inputs</button>
+          </div>
+        </div>
+
+        <div class="section-jumps">
+          <button class="jump-button" data-jump="personnel">Personnel</button>
+          <button class="jump-button" data-jump="farmMissionSelection">Farm Missions</button>
+          <button class="jump-button" data-jump="campaign">Campaign</button>
+          <button class="jump-button" data-jump="resources">Resources</button>
+          <button class="jump-button ouro-only" id="baseFragmentsJump" data-jump="baseFragments">Base Fragments</button>
+          <button class="jump-button" data-jump="modifiers">Modifiers</button>
+          <button class="jump-button" data-jump="output">Output</button>
+        </div>
+      </div>
+
+      <section id="personnel" class="content-card">
+        <div class="card-header">
+          <h2>Personnel</h2>
+          <p>Enter the individual power and counts of your personnel in each section.</p>
+        </div>
+
+        <div class="table-wrap">
+          <table class="data-table personnel-table">
+            <thead>
+              <tr>
+                <th>Personnel Type</th>
+                <th>Power</th>
+                <th>Count</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Mining Pod</td>
+                <td><input id="power-mining-pod" type="number" step="0.1" value="0" /></td>
+                <td><input id="count-mining-pod" type="number" step="1" value="0" /></td>
+              </tr>
+              <tr>
+                <td>Fireteam Carrier</td>
+                <td><input id="power-fireteam-carrier" type="number" step="0.1" value="0" /></td>
+                <td><input id="count-fireteam-carrier" type="number" step="1" value="0" /></td>
+              </tr>
+              <tr>
+                <td>Titan Hauler</td>
+                <td><input id="power-titan-hauler" type="number" step="0.1" value="0" /></td>
+                <td><input id="count-titan-hauler" type="number" step="1" value="0" /></td>
+              </tr>
+              <tr>
+                <td>Combat Corvette</td>
+                <td><input id="power-combat-corvette" type="number" step="0.1" value="0" /></td>
+                <td><input id="count-combat-corvette" type="number" step="1" value="0" /></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+
+      <section id="farmMissionSelection" class="content-card">
+        <div class="card-header">
+          <h2>Farm Mission Selection</h2>
+          <p>Select which farm missions you have unlocked. Additional missions appear when Ouroboros is enabled.</p>
+        </div>
+
+        <div class="mission-selection-toolbar">
+          <div class="action-group action-group--inline">
+            <button class="action-button" id="missionSelectAllBtn" type="button">Select All</button>
+            <button class="action-button" id="missionClearAllBtn" type="button">Clear All</button>
+          </div>
+        </div>
+
+        <div class="mission-tier-grid" id="farmMissionSelectionGrid"></div>
+      </section>
+
+      <section id="campaign" class="content-card">
+        <div class="card-header">
+          <h2>Campaign</h2>
+          <p>Enable to optimize both campaign and farm missions based on preferred focus.</p>
+        </div>
+
+        <div class="grid grid-4 campaign-grid">
+          <div class="field-card field-card--checkbox">
+            <label class="field-label">Campaign Enabled?</label>
+            <label class="checkbox-row">
+              <input id="campaignEnabled" type="checkbox" />
+              <span>Enable Campaign Optimization</span>
+            </label>
+          </div>
+
+          <div class="field-card">
+            <label class="field-label" for="campaignTarget">Campaign Target</label>
+            <select id="campaignTarget">
+              <option>C1-1</option>
+<option>C1-2</option>
+<option>C1-3</option>
+<option>C1-4</option>
+<option>C1-5</option>
+<option>C1-6</option>
+<option>C1-7</option>
+<option>C1-8</option>
+<option>C1-9</option>
+<option>C1-10</option>
+<option>C1-11</option>
+<option>C1-12</option>
+<option>C2-1</option>
+<option>C2-2</option>
+<option>C2-3</option>
+<option>C2-4</option>
+<option>C2-5</option>
+<option>C2-6</option>
+<option>C2-7</option>
+<option>C2-8</option>
+<option>C2-9</option>
+<option>C2-10</option>
+<option>C2-11</option>
+<option>C2-12</option>
+<option>C3-1</option>
+<option>C3-2</option>
+<option>C3-3</option>
+<option>C3-4</option>
+<option>C3-5</option>
+<option>C3-6</option>
+<option>C3-7</option>
+<option>C3-8</option>
+<option>C3-9</option>
+<option>C3-10</option>
+<option>C3-11</option>
+<option>C3-12</option>
+<option>C4-1</option>
+<option>C4-2</option>
+<option>C4-3</option>
+<option>C4-4</option>
+<option>C4-5</option>
+<option>C4-6</option>
+<option>C4-7</option>
+<option>C4-8</option>
+<option>C4-9</option>
+<option>C4-10</option>
+<option selected>C4-11</option>
+<option>C4-12</option>
+            </select>
+          </div>
+
+          <div class="field-card">
+            <label class="field-label" for="campaignFocus">Campaign Focus</label>
+            <select id="campaignFocus">
+              <option>Prioritize Campaign</option>
+              <option>Even Consideration</option>
+              <option selected>Prioritize Farms</option>
+            </select>
+          </div>
+
+          <div class="field-card ouro-only">
+            <label class="field-label" for="relic11">T1 Relic 11 Level</label>
+            <input id="relic11" type="number" step="1" value="0" />
+            <p class="tiny-note">Adjusts campaign mission caps.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="resources" class="content-card">
+        <div class="card-header">
+          <h2>Resources</h2>
+          <p>The optimizer will sacrifice some of its effciency to focus on any boosted materials.</p>
+        </div>
+
+        <div class="table-wrap">
+          <table class="data-table resources-table">
+            <thead>
+              <tr>
+                <th>Material</th>
+                <th>Priority</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>Difar</td><td><select id="priority-Difar"><option selected>Normal</option><option>Boosted</option></select></td></tr>
+              <tr><td>Kento</td><td><select id="priority-Kento"><option selected>Normal</option><option>Boosted</option></select></td></tr>
+              <tr><td>Chromium</td><td><select id="priority-Chromium"><option selected>Normal</option><option>Boosted</option></select></td></tr>
+              <tr><td>Exon</td><td><select id="priority-Exon"><option selected>Normal</option><option>Boosted</option></select></td></tr>
+              <tr><td>Organium</td><td><select id="priority-Organium"><option selected>Normal</option><option>Boosted</option></select></td></tr>
+              <tr><td>Adamorphium</td><td><select id="priority-Adamorphium"><option selected>Normal</option><option>Boosted</option></select></td></tr>
+              <tr><td>Moskom</td><td><select id="priority-Moskom"><option selected>Normal</option><option>Boosted</option></select></td></tr>
+              <tr><td>Darkseid</td><td><select id="priority-Darkseid"><option selected>Normal</option><option>Boosted</option></select></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="baseFragments" class="content-card ouro-only">
+        <div class="card-header">
+          <h2>Farm Fragments</h2>
+          <p>Enter fragments from Farm Missions</p>
+        </div>
+
+        <div class="grid grid-1">
+          <div class="field-card">
+            <label class="field-label" for="baseFragmentsInput">Base Fragments / Completion (est.)</label>
+            <input id="baseFragmentsInput" type="number" step="0.0001" value="0.0000" />
+          </div>
+        </div>
+      </section>
+
+      <section id="modifiers" class="content-card">
+        <div class="card-header">
+          <h2>Modifiers</h2>
+          <p>Fill in obtained upgrades to adjust for mission speed.</p>
+        </div>
+
+        <div class="grid grid-4 campaign-grid">
+          <div class="field-card field-card--checkbox">
+            <label class="field-label">Engineering Badge?</label>
+            <label class="checkbox-row">
+              <input id="engineeringBadge" type="checkbox" checked />
+              <span>Enabled</span>
+            </label>
+          </div>
+
+          <div class="field-card">
+            <label class="field-label" for="swarmLevel">Ultima: Rule of the Swarm Level</label>
+            <input id="swarmLevel" type="number" step="1" value="0" />
+          </div>
+
+          <div class="field-card">
+            <label class="field-label" for="productivityLevel">Ultima: Rule of Productivity Level</label>
+            <input id="productivityLevel" type="number" step="1" value="0" />
+          </div>
+
+          <div class="field-card">
+            <label class="field-label" for="research58">Research 58 Level</label>
+            <input id="research58" type="number" step="1" value="0" />
+          </div>
+
+          <div class="field-card">
+            <label class="field-label" for="research70">Research 70 Level</label>
+            <input id="research70" type="number" step="1" value="0" />
+          </div>
+
+          <div class="field-card">
+            <label class="field-label" for="research80">Research 80 Level</label>
+            <input id="research80" type="number" step="1" value="0" />
+          </div>
+
+          <div class="field-card ouro-only">
+            <label class="field-label" for="relic3">T1 Relic 3 Level</label>
+            <input id="relic3" type="number" step="1" value="30" />
+          </div>
+
+          <div class="field-card ouro-only field-card--checkbox">
+            <label class="field-label">Trait Sphere 07</label>
+            <label class="checkbox-row">
+              <input id="ts07" type="checkbox" />
+              <span>Enabled</span>
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <section id="output" class="content-card output-placeholder">
+        <div class="card-header">
+          <h2>Output</h2>
+          <p>Outputs the most optimal mission distribution for personnel.</p>
+        </div>
+
+        <div class="grid grid-3 summary-grid">
+          <div class="field-card">
+            <label class="field-label">Status</label>
+            <div class="summary-value" id="statusText">Ready</div>
+          </div>
+          <div class="field-card">
+            <label class="field-label">Campaign ETA (hrs)</label>
+            <div class="summary-value" id="campaignEtaText">—</div>
+          </div>
+          <div class="field-card">
+            <label class="field-label">Mode Used</label>
+            <div class="summary-value" id="modeUsedText">—</div>
+          </div>
+        </div>
+
+        <div class="output-block-header">Mission Distribution</div>
+        <div class="table-wrap">
+          <table class="data-table output-distribution-table">
+            <thead>
+              <tr>
+                <th>Mission</th>
+                <th>Mining Pod</th>
+                <th>Fireteam Carrier</th>
+                <th>Titan Hauler</th>
+                <th>Combat Corvette</th>
+              </tr>
+            </thead>
+            <tbody id="distributionBody">
+              <tr><td colspan="5">Run the optimizer to populate mission distribution.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="output-block-header">Base Resources per hour (Before any material bonuses).</div>
+        <div class="table-wrap">
+          <table class="data-table output-totals-table">
+            <thead>
+              <tr><th>Metric</th><th>Value</th></tr>
+            </thead>
+            <tbody id="totalsBody">
+              <tr><td colspan="2">Run the optimizer to populate totals.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+
+    <section id="faq" class="tab-panel">
+      <div class="content-card">
+        <div class="card-header">
+          <h2>FAQ</h2>
+          <p>Short notes for the browser build.</p>
+        </div>
+        <div class="faq-list">
+          <div class="faq-item">
+            <h3>What are the different modes?</h3>
+            <p><b>Maximising Resources</b> — focuses on generating the highest overall resource value, using your Normal and Boosted resource settings to decide which materials should be prioritised.</p>
+            <p><b>Fragments</b> — focuses entirely on maximising fragment gain, making it the best choice when fragment farming is your main goal.</p>
+            <p><b>Fragments + Resources</b> — prioritises fragment gain first, then uses resource value as a secondary factor to choose the best mission distribution.</p>
+            <p><b>Academy Points</b> — focuses on maximising Academy Point income.</p>
+            <p><b>Max Completions</b> — focuses on achieving the highest possible number of mission completions.</p>
+          </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="credits" class="tab-panel">
+      <div class="content-card">
+        <div class="card-header">
+          <h2>Credits and Changelog</h2>
+          <p>Created by Jack0lantern29</p>
+        </div>
+
+        <div class="changelog-list">
+          <div class="changelog-item">
+            <span class="tag">v2.0 Web Launch</span>
+            <p>Installed the previous spreadsheet optimizer into the website format.</p>
+          </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>

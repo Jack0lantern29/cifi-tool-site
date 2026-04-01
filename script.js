@@ -1,0 +1,1399 @@
+
+const MATS = ["Difar","Kento","Chromium","Exon","Organium","Adamorphium","Moskom","Darkseid"];
+const TYPE_ORDER = ["Mining Pod","Fireteam Carrier","Titan Hauler","Combat Corvette"];
+const TYPE_RANK = {
+  "Mining Pod": 1,
+  "Fireteam Carrier": 2,
+  "Titan Hauler": 3,
+  "Combat Corvette": 4
+};
+
+const MISSION_DATA = [{"name":"F1-1","minutes":30.0,"cap":20,"academy":5.0,"fragments":0.0,"rewards":{"Difar":38.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"F1-2","minutes":360.0,"cap":60,"academy":150.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":320.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"F1-3","minutes":2400.0,"cap":100,"academy":1200.0,"fragments":0.0,"rewards":{"Difar":1350.0,"Kento":280.0,"Chromium":760.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"F1-4","minutes":6000.0,"cap":120,"academy":0.0,"fragments":0.0061,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"F2-1","minutes":150.0,"cap":80,"academy":35.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":35.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"F2-2","minutes":2400.0,"cap":160,"academy":170.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":560.0,"Exon":0.0,"Organium":80.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"F2-3","minutes":72000.0,"cap":500,"academy":11500.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":2200.0,"Organium":320.0,"Adamorphium":260.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"F2-4","minutes":132000.0,"cap":1000,"academy":0.0,"fragments":0.0061,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"F3-1","minutes":3000.0,"cap":150,"academy":2000.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":19.0,"Darkseid":0.0}},{"name":"F3-2","minutes":975000.0,"cap":2000,"academy":1000000.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":80.0}},{"name":"F3-3","minutes":1875000.0,"cap":4000,"academy":2000000.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":5200.0,"Adamorphium":2440.0,"Moskom":4000.0,"Darkseid":160.0}},{"name":"F3-4","minutes":3900000.0,"cap":8000,"academy":0.0,"fragments":0.0061,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"F4-1","minutes":21000.0,"cap":1000,"academy":17000.0,"fragments":0.0,"rewards":{"Difar":40.0,"Kento":60.0,"Chromium":0.0,"Exon":0.0,"Organium":50.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"F4-2","minutes":4875000.0,"cap":10000,"academy":3300000.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":8000.0,"Exon":0.0,"Organium":0.0,"Adamorphium":7000.0,"Moskom":0.0,"Darkseid":2000.0}},{"name":"F4-3","minutes":9750000.0,"cap":20000,"academy":6700000.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":30000.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":20000.0,"Darkseid":5000.0}},{"name":"F4-4","minutes":19500000.0,"cap":40000,"academy":0.0,"fragments":0.0061,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C1-1","minutes":5.0,"cap":10,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C1-2","minutes":30.0,"cap":20,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C1-3","minutes":900.0,"cap":40,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C1-4","minutes":2400.0,"cap":60,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C1-5","minutes":7800.0,"cap":80,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C1-6","minutes":16200.0,"cap":120,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C1-7","minutes":36600.0,"cap":140,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C1-8","minutes":90000.0,"cap":200,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C1-9","minutes":192000000.0,"cap":1500,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C1-10","minutes":288000000.0,"cap":2000,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C1-11","minutes":426000000.0,"cap":2500,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C1-12","minutes":852000000.0,"cap":3000,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C2-1","minutes":150000.0,"cap":200,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C2-2","minutes":195000.0,"cap":240,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C2-3","minutes":270000.0,"cap":280,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C2-4","minutes":405000.0,"cap":320,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C2-5","minutes":480000.0,"cap":360,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C2-6","minutes":570000.0,"cap":400,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C2-7","minutes":840000.0,"cap":600,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C2-8","minutes":3600000.0,"cap":1000,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C2-9","minutes":576000000.0,"cap":3000,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C2-10","minutes":1128000000.0,"cap":6000,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C2-11","minutes":2184000000.0,"cap":12000,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C2-12","minutes":6552000000.0,"cap":24000,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C3-1","minutes":3000000.0,"cap":1000,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C3-2","minutes":4500000.0,"cap":1200,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C3-3","minutes":6000000.0,"cap":1400,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C3-4","minutes":7500000.0,"cap":1600,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C3-5","minutes":9000000.0,"cap":1800,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C3-6","minutes":10500000.0,"cap":2000,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C3-7","minutes":24000000.0,"cap":2200,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C3-8","minutes":45000000.0,"cap":2400,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C3-9","minutes":5760000000.0,"cap":17500,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C3-10","minutes":11280000000.0,"cap":35000,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C3-11","minutes":15780000000.0,"cap":60000,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C3-12","minutes":29280000000.0,"cap":70000,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C4-1","minutes":144000000.0,"cap":5600,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C4-2","minutes":195000000.0,"cap":6000,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C4-3","minutes":240000000.0,"cap":7200,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C4-4","minutes":300000000.0,"cap":7800,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C4-5","minutes":390000000.0,"cap":8400,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C4-6","minutes":660000000.0,"cap":9000,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C4-7","minutes":900000000.0,"cap":9600,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C4-8","minutes":1920000000.0,"cap":10000,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C4-9","minutes":57600000000.0,"cap":60000,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C4-10","minutes":172800000000.0,"cap":100000,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C4-11","minutes":518400000000.0,"cap":140000,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}},{"name":"C4-12","minutes":2155196371763.288,"cap":180000,"academy":0.0,"fragments":0.0,"rewards":{"Difar":0.0,"Kento":0.0,"Chromium":0.0,"Exon":0.0,"Organium":0.0,"Adamorphium":0.0,"Moskom":0.0,"Darkseid":0.0}}];
+
+const OURO_OFF_VISIBLE_FARMS = new Set(["F1-1","F1-2","F1-3","F2-1","F2-2","F2-3","F3-1","F3-2","F3-3"]);
+const OURO_OFF_VISIBLE_CAMPAIGNS = new Set([
+  "C1-9","C1-10","C1-11","C1-12",
+  "C2-9","C2-10","C2-11","C2-12",
+  "C3-9","C3-10","C3-11","C3-12",
+  "C4-1","C4-2","C4-3","C4-4","C4-5","C4-6","C4-7","C4-8","C4-9","C4-10","C4-11","C4-12"
+]);
+const ALL_MODE_OPTIONS = ["Fragments + Resources", "Fragments", "Maximising Resources", "Academy Points", "Max Completions"];
+const OURO_REQUIRED_MODE_OPTIONS = new Set(["Fragments + Resources", "Fragments"]);
+
+const CURRENT_VERSION = "web-v11";
+const STORAGE_KEY = "cifi-farm-mission-optimizer-state-v1";
+const MIN_DURATION_MINS = 2.0 / 60.0;
+const EPS = 1e-9;
+const NEAR_BEST_POOL_PCT = 0.02;
+const LOCAL_IMPROVE_MAX_ITERS = 250;
+const MULTISTART_MIN_RUNS = 3;
+const MULTISTART_MAX_RUNS = 7;
+const MULTISTART_STALE_LIMIT = 2;
+const MULTISTART_TOP_K = 3;
+const LOCAL_POLISH_MAX_PASSES = 2;
+const LOCAL_POLISH_MAX_MOVES = 30;
+const TYPE_REBUILD_MAX_UNITS = 8;
+const FRAGMENT_SHORTLIST_SIZE = 6;
+const RESOURCE_SHORTLIST_SIZE = 6;
+
+const tabButtons = document.querySelectorAll('.tab-button');
+const tabPanels = document.querySelectorAll('.tab-panel');
+const jumpButtons = document.querySelectorAll('.jump-button');
+const ouroToggle = document.getElementById('ouroToggle');
+const ouroOnlyBlocks = document.querySelectorAll('.ouro-only');
+const modeSelect = document.getElementById('modeSelect');
+const campaignTargetSelect = document.getElementById('campaignTarget');
+const runOptimizerBtn = document.getElementById('runOptimizerBtn');
+const resetInputsBtn = document.getElementById('resetInputsBtn');
+const missionSelectAllBtn = document.getElementById('missionSelectAllBtn');
+const missionClearAllBtn = document.getElementById('missionClearAllBtn');
+
+const ALL_FARM_MISSIONS = MISSION_DATA
+  .filter(m => !isCampaignName_(m.name))
+  .map(m => m.name);
+const ALL_CAMPAIGN_MISSIONS = MISSION_DATA
+  .filter(m => isCampaignName_(m.name))
+  .map(m => m.name);
+
+let missionSelectionState = {};
+
+tabButtons.forEach((button) => {
+  button.addEventListener('click', () => {
+    const target = button.dataset.tab;
+    tabButtons.forEach((btn) => btn.classList.remove('active'));
+    tabPanels.forEach((panel) => panel.classList.remove('active'));
+    button.classList.add('active');
+    document.getElementById(target).classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+});
+
+jumpButtons.forEach((button) => {
+  button.addEventListener('click', () => {
+    const targetId = button.dataset.jump;
+    const el = document.getElementById(targetId);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+});
+
+function getVisibleCampaignMissionNames_(ouroUnlocked) {
+  return ALL_CAMPAIGN_MISSIONS.filter(name => ouroUnlocked || OURO_OFF_VISIBLE_CAMPAIGNS.has(name));
+}
+
+function renderModeOptions_() {
+  const prev = modeSelect.value;
+  const ouroUnlocked = ouroToggle.checked;
+  const allowed = ALL_MODE_OPTIONS.filter(mode => ouroUnlocked || !OURO_REQUIRED_MODE_OPTIONS.has(mode));
+  modeSelect.innerHTML = allowed.map(mode => `<option>${mode}</option>`).join('');
+  if (allowed.includes(prev)) {
+    modeSelect.value = prev;
+  } else {
+    modeSelect.value = 'Maximising Resources';
+  }
+}
+
+function renderCampaignTargets_() {
+  const previous = campaignTargetSelect.value;
+  const visible = getVisibleCampaignMissionNames_(ouroToggle.checked);
+  campaignTargetSelect.innerHTML = visible.map(name => `<option>${name}</option>`).join('');
+
+  if (visible.includes(previous)) {
+    campaignTargetSelect.value = previous;
+  } else if (visible.includes('C4-11')) {
+    campaignTargetSelect.value = 'C4-11';
+  } else if (visible.length > 0) {
+    campaignTargetSelect.value = visible[0];
+  }
+}
+
+
+let DEFAULT_FORM_STATE = null;
+
+function collectFormState_() {
+  const controls = document.querySelectorAll('#optimizer input[id], #optimizer select[id]');
+  const values = {};
+  controls.forEach((el) => {
+    if (el.type === 'checkbox') {
+      values[el.id] = !!el.checked;
+    } else {
+      values[el.id] = el.value;
+    }
+  });
+  return {
+    version: CURRENT_VERSION,
+    values,
+    missionSelectionState: { ...missionSelectionState }
+  };
+}
+
+function saveState_() {
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(collectFormState_()));
+  } catch (err) {
+    console.warn('Unable to save optimizer state.', err);
+  }
+}
+
+function applyFormState_(state) {
+  if (!state || !state.values) return;
+
+  const values = state.values || {};
+
+  if (typeof values.ouroToggle === 'boolean') {
+    ouroToggle.checked = values.ouroToggle;
+  }
+
+  Object.entries(values).forEach(([id, value]) => {
+    if (id === 'ouroToggle' || id === 'modeSelect' || id === 'campaignTarget') return;
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (el.type === 'checkbox') {
+      el.checked = !!value;
+    } else {
+      el.value = value;
+    }
+  });
+
+  missionSelectionState = { ...(state.missionSelectionState || {}) };
+  syncOuroVisibility();
+
+  if (values.modeSelect && Array.from(modeSelect.options).some(opt => opt.value === values.modeSelect)) {
+    modeSelect.value = values.modeSelect;
+  }
+
+  if (values.campaignTarget && Array.from(campaignTargetSelect.options).some(opt => opt.value === values.campaignTarget)) {
+    campaignTargetSelect.value = values.campaignTarget;
+  }
+
+  renderFarmMissionSelection_();
+}
+
+function restoreSavedState_() {
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return false;
+    const parsed = JSON.parse(raw);
+    applyFormState_(parsed);
+    return true;
+  } catch (err) {
+    console.warn('Unable to restore optimizer state.', err);
+    return false;
+  }
+}
+
+function clearOutput_() {
+  document.getElementById('campaignEtaText').textContent = '—';
+  document.getElementById('modeUsedText').textContent = modeSelect.value;
+  document.getElementById('totalsBody').innerHTML = '<tr><td colspan="2">Run the optimiser to populate totals.</td></tr>';
+  document.getElementById('distributionBody').innerHTML = '<tr><td colspan="5">Run the optimiser to populate mission distribution.</td></tr>';
+  setStatus_('Ready');
+}
+
+function resetToDefaults_() {
+  if (!DEFAULT_FORM_STATE) return;
+  missionSelectionState = {};
+  applyFormState_(DEFAULT_FORM_STATE);
+  try {
+    window.localStorage.removeItem(STORAGE_KEY);
+  } catch (err) {
+    console.warn('Unable to clear optimizer state.', err);
+  }
+  clearOutput_();
+}
+
+function initPersistence_() {
+  syncOuroVisibility();
+  DEFAULT_FORM_STATE = collectFormState_();
+  restoreSavedState_();
+
+  const optimizerPanel = document.getElementById('optimizer');
+  optimizerPanel.addEventListener('input', (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    if (!target.matches('input[id], select[id]')) return;
+    saveState_();
+  });
+  optimizerPanel.addEventListener('change', (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    if (!target.matches('input[id], select[id]')) return;
+    saveState_();
+  });
+}
+
+function syncOuroVisibility() {
+  const show = ouroToggle.checked;
+  ouroOnlyBlocks.forEach((block) => {
+    block.classList.toggle('hidden', !show);
+  });
+
+  renderModeOptions_();
+  renderCampaignTargets_();
+  renderFarmMissionSelection_();
+}
+
+ouroToggle.addEventListener('change', () => { syncOuroVisibility(); saveState_(); });
+missionSelectAllBtn.addEventListener('click', () => {
+  getVisibleFarmMissionNames_(ouroToggle.checked).forEach(name => {
+    missionSelectionState[name] = true;
+  });
+  renderFarmMissionSelection_();
+  saveState_();
+});
+missionClearAllBtn.addEventListener('click', () => {
+  getVisibleFarmMissionNames_(ouroToggle.checked).forEach(name => {
+    missionSelectionState[name] = false;
+  });
+  renderFarmMissionSelection_();
+  saveState_();
+});
+syncOuroVisibility();
+
+resetInputsBtn.addEventListener('click', () => resetToDefaults_());
+runOptimizerBtn.addEventListener('click', () => { saveState_(); runOptimizerWeb(); });
+
+function scrollToOutput_() {
+  const output = document.getElementById('output');
+  if (!output) return;
+  window.requestAnimationFrame(() => {
+    output.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+}
+
+function clamp_(x, lo, hi) {
+  return Math.max(lo, Math.min(hi, x));
+}
+
+
+function typeKey_(type) {
+  return String(type || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function normalizeMode_(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function getVisibleFarmMissionNames_(ouroUnlocked) {
+  return ALL_FARM_MISSIONS.filter(name => ouroUnlocked || OURO_OFF_VISIBLE_FARMS.has(name));
+}
+
+function renderFarmMissionSelection_() {
+  const container = document.getElementById('farmMissionSelectionGrid');
+  if (!container) return;
+
+  const visible = getVisibleFarmMissionNames_(ouroToggle.checked);
+  visible.forEach(name => {
+    if (!(name in missionSelectionState)) missionSelectionState[name] = true;
+  });
+
+  const tiers = { F1: [], F2: [], F3: [], F4: [] };
+  visible.forEach(name => {
+    const tier = String(name).split('-')[0];
+    if (tiers[tier]) tiers[tier].push(name);
+  });
+
+  const tierMarkup = Object.entries(tiers)
+    .filter(([, names]) => names.length > 0)
+    .map(([tier, names]) => {
+      const selectedCount = names.reduce((sum, name) => sum + (missionSelectionState[name] !== false ? 1 : 0), 0);
+      const countLabel = `${selectedCount} selected`;
+
+      return `
+        <div class="mission-tier-card">
+          <div class="mission-tier-header">
+            <h3>${tier}</h3>
+            <span class="mission-tier-count">${countLabel}</span>
+          </div>
+          <div class="mission-tile-grid">
+            ${names.map(name => `
+              <label class="mission-tile ${missionSelectionState[name] ? 'is-checked' : ''}">
+                <input class="mission-tile-input" type="checkbox" value="${name}" ${missionSelectionState[name] ? 'checked' : ''} />
+                <span>${name}</span>
+              </label>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    })
+    .join('');
+
+  container.innerHTML = tierMarkup || '<div class="mission-tier-empty">No farm missions are currently visible.</div>';
+
+  container.querySelectorAll('.mission-tile-input').forEach(input => {
+    input.addEventListener('change', () => {
+      missionSelectionState[input.value] = input.checked;
+      renderFarmMissionSelection_();
+      saveState_();
+    });
+  });
+}
+
+function getSelectedFarmMissionNames_() {
+  const selected = new Set();
+  getVisibleFarmMissionNames_(ouroToggle.checked).forEach(name => {
+    if (missionSelectionState[name] !== false) selected.add(name);
+  });
+  return selected;
+}
+
+function isCampaignName_(name) {
+  return /^C\d+-\d+$/i.test(String(name || "").trim());
+}
+
+function getCampaignBaseWeight_(focus) {
+  switch (String(focus || "").trim()) {
+    case "Prioritize Campaign":
+      return 0.50;
+    case "Prioritize Farms":
+      return 0.20;
+    case "Even Consideration":
+    default:
+      return 0.35;
+  }
+}
+
+function getGlobalSpeedMultiplierFromUi_() {
+  const engineeringBadge = document.getElementById('engineeringBadge').checked;
+  const swarmLevel = parseFloat(document.getElementById('swarmLevel').value) || 0;
+  const productivityLevel = parseFloat(document.getElementById('productivityLevel').value) || 0;
+  const research58 = parseFloat(document.getElementById('research58').value) || 0;
+  const research70 = parseFloat(document.getElementById('research70').value) || 0;
+  const research80 = parseFloat(document.getElementById('research80').value) || 0;
+  const relic3 = ouroToggle.checked ? (parseFloat(document.getElementById('relic3').value) || 0) : 0;
+  const ts07 = ouroToggle.checked ? document.getElementById('ts07').checked : false;
+
+  let mult = 1.0;
+  mult *= engineeringBadge ? 2.0 : 1.0;
+  mult *= Math.pow(1.0311, swarmLevel);
+  mult *= Math.pow(1.1, productivityLevel);
+  mult *= (research58 >= 1 ? 1.05 : 1.0);
+  mult *= (research58 >= 3 ? 1.05 : 1.0);
+  mult *= (research58 >= 5 ? 1.05 : 1.0);
+  mult *= (research70 >= 5 ? 2.0 : 1.0);
+  mult *= (research80 >= 5 ? 1.5 : 1.0);
+  if (ouroToggle.checked) {
+    mult *= (relic3 * 0.03) + 1.0;
+    mult *= ts07 ? 2.0 : 1.0;
+  }
+  return mult;
+}
+
+function getUiState_() {
+  const workers = {};
+  const workerPowers = {};
+  TYPE_ORDER.forEach(type => {
+    const power = parseFloat(document.getElementById(`power-${typeKey_(type)}`).value) || 0;
+    const count = parseInt(document.getElementById(`count-${typeKey_(type)}`).value || '0', 10) || 0;
+    workers[type] = { power, count };
+    workerPowers[type] = power;
+  });
+
+  const weights = {};
+  MATS.forEach(mat => {
+    const value = document.getElementById(`priority-${mat}`).value;
+    weights[mat] = value === "Boosted" ? 10.0 : 1.0;
+  });
+
+  const ouroUnlocked = ouroToggle.checked;
+  const baseFragments = ouroUnlocked ? (parseFloat(document.getElementById('baseFragmentsInput').value) || 0) : 0;
+
+  return {
+    ouroUnlocked,
+    workers,
+    workerPowers,
+    weights,
+    selectedFarmMissions: getSelectedFarmMissionNames_(),
+    modeRaw: modeSelect.value,
+    modeNorm: normalizeMode_(modeSelect.value),
+    fragmentsPerCompletion: baseFragments,
+    campaignEnabled: document.getElementById('campaignEnabled').checked,
+    campaignTargetName: document.getElementById('campaignTarget').value,
+    campaignFocus: document.getElementById('campaignFocus').value,
+    globalSpeedMult: getGlobalSpeedMultiplierFromUi_()
+  };
+}
+
+function buildMissionPool_(ui) {
+  let campaignMission = null;
+  const missions = [];
+
+  MISSION_DATA.forEach(row => {
+    const anyReward = MATS.some(mat => (row.rewards[mat] || 0) > 0);
+    const isCampaignRow = isCampaignName_(row.name) && !anyReward && (row.academy || 0) <= 0;
+
+    if (!isCampaignRow && !ui.ouroUnlocked && !OURO_OFF_VISIBLE_FARMS.has(row.name)) {
+      return;
+    }
+
+    if (isCampaignRow && !ui.ouroUnlocked && !OURO_OFF_VISIBLE_CAMPAIGNS.has(row.name)) {
+      return;
+    }
+
+    if (!isCampaignRow && ui.selectedFarmMissions && !ui.selectedFarmMissions.has(row.name)) {
+      return;
+    }
+
+    const mission = {
+      id: missions.length,
+      name: row.name,
+      cap: row.cap,
+      baseMins: row.minutes,
+      baseAcademy: row.academy || 0,
+      baseFragments: row.fragments || 0,
+      baseRewards: { ...row.rewards },
+      isCampaign: isCampaignRow,
+      assignedUnits: 0,
+      currentPower: 0,
+      currentRunsPerHour: 0
+    };
+    missions.push(mission);
+
+    if (ui.campaignEnabled && row.name === ui.campaignTargetName) {
+      campaignMission = mission;
+    }
+  });
+
+  if (ui.campaignEnabled && !campaignMission) {
+    throw new Error(`Campaign target "${ui.campaignTargetName}" was not found.`);
+  }
+
+  return { missions, campaignMission };
+}
+
+function runOptimizerWeb() {
+  setStatus_("Running...");
+  try {
+    const ui = getUiState_();
+    const { missions, campaignMission } = buildMissionPool_(ui);
+
+    const result = solveOptimizer_(ui, missions, campaignMission);
+    renderResult_(ui, result);
+    setStatus_("Completed");
+  } catch (err) {
+    console.error(err);
+    setStatus_("Error");
+    renderError_(err);
+  } finally {
+    scrollToOutput_();
+  }
+}
+
+function solveOptimizer_(ui, missions, campaignMission) {
+  const modeNorm = ui.modeNorm;
+  const campaignBaseWeight = getCampaignBaseWeight_(ui.campaignFocus);
+
+  const isAcademyMode   = (modeNorm === "academy points");
+  const isMaxCompMode   = (modeNorm === "max completions");
+  const isResourcesMode = (modeNorm === "maximising resources");
+  const isFragmentsMode =
+    (modeNorm === "farm fragments") ||
+    (modeNorm === "fragments farm") ||
+    (modeNorm === "fragments") ||
+    (modeNorm === "fragments farming");
+  const isFragResMode =
+    (modeNorm === "fragments + resources") ||
+    (modeNorm === "fragments and resources") ||
+    (modeNorm === "fragment/resource hybrid") ||
+    (modeNorm === "hybrid fragments/resources");
+
+  let workers = JSON.parse(JSON.stringify(ui.workers));
+  const workerPowers = ui.workerPowers;
+  const weights = ui.weights;
+  const globalSpeedMult = ui.globalSpeedMult;
+  const fragmentsPerCompletion = ui.fragmentsPerCompletion;
+  let assignmentMap = {};
+  let totals = { Academy: 0, Completions: 0, Fragments: 0 };
+  MATS.forEach(m => totals[m] = 0);
+  let missionWorkerCounts = {};
+  missions.forEach(m => missionWorkerCounts[m.name] = {});
+
+  function missionRunsPerHour(baseMins, totalPower) {
+    if (!totalPower || totalPower <= 0) return 0;
+    const rawMinutes = baseMins / (globalSpeedMult * totalPower);
+    const actualMinutes = Math.max(rawMinutes, MIN_DURATION_MINS);
+    return 60.0 / actualMinutes;
+  }
+
+  function campaignETAHours(mission, totalPower) {
+    if (!mission || !totalPower || totalPower <= 0) return Infinity;
+    const rawMinutes = mission.baseMins / (globalSpeedMult * totalPower);
+    const actualMinutes = Math.max(rawMinutes, MIN_DURATION_MINS);
+    return actualMinutes / 60.0;
+  }
+
+  function currentCampaignETA() {
+    if (!campaignMission) return Infinity;
+    return campaignETAHours(campaignMission, campaignMission.currentPower);
+  }
+
+  function urgencyMultiplier(etaHours) {
+    if (!ui.campaignEnabled || !campaignMission) return 1.0;
+    if (!isFinite(etaHours)) return 1.50;
+    const x = Math.log10(1 + Math.max(0, etaHours));
+    return clamp_(1.00 + 0.15 * x, 1.00, 1.50);
+  }
+
+  function effectiveCampaignWeight() {
+    if (!ui.campaignEnabled || !campaignMission) return 0.0;
+    const eta = currentCampaignETA();
+    return clamp_(campaignBaseWeight * urgencyMultiplier(eta), 0.05, 0.95);
+  }
+
+  function assignmentKey_(missionName, workerType) {
+    return missionName + "|" + workerType;
+  }
+
+  function addAssignment(missionName, workerType, deltaCount) {
+    const key = assignmentKey_(missionName, workerType);
+    const oldVal = assignmentMap[key] || 0;
+    const newVal = oldVal + deltaCount;
+    if (newVal > 0) assignmentMap[key] = newVal;
+    else delete assignmentMap[key];
+  }
+
+  function getAssignmentsArray_() {
+    const out = [];
+    Object.keys(assignmentMap).forEach(key => {
+      const count = assignmentMap[key];
+      if (count <= 0) return;
+      const parts = key.split("|");
+      out.push({ name: parts[0], type: parts[1], count });
+    });
+    return out;
+  }
+
+  function addWorkerToMission(mission, type) {
+    const power = workerPowers[type];
+    mission.assignedUnits++;
+    mission.currentPower += power;
+    if (!mission.isCampaign) {
+      mission.currentRunsPerHour = missionRunsPerHour(mission.baseMins, mission.currentPower);
+    }
+    missionWorkerCounts[mission.name][type] = (missionWorkerCounts[mission.name][type] || 0) + 1;
+  }
+
+  function removeWorkerFromMission(mission, type) {
+    const power = workerPowers[type];
+    mission.assignedUnits--;
+    mission.currentPower -= power;
+    if (mission.currentPower < 0) mission.currentPower = 0;
+    if (!mission.isCampaign) {
+      mission.currentRunsPerHour = mission.currentPower > 0
+        ? missionRunsPerHour(mission.baseMins, mission.currentPower)
+        : 0;
+    }
+    missionWorkerCounts[mission.name][type] = (missionWorkerCounts[mission.name][type] || 0) - 1;
+    if (missionWorkerCounts[mission.name][type] <= 0) delete missionWorkerCounts[mission.name][type];
+  }
+
+  function getFragmentYieldPerCompletion_(mission) {
+    return fragmentsPerCompletion + (mission.baseFragments || 0);
+  }
+
+  function addFarmContributionToTotals(mission, deltaRuns) {
+    totals.Completions += deltaRuns;
+    totals.Academy += deltaRuns * mission.baseAcademy;
+    totals.Fragments += deltaRuns * getFragmentYieldPerCompletion_(mission);
+    MATS.forEach(mat => {
+      totals[mat] += deltaRuns * mission.baseRewards[mat];
+    });
+  }
+
+  function removeFarmContributionFromTotals(mission, deltaRunsLoss) {
+    totals.Completions -= deltaRunsLoss;
+    totals.Academy -= deltaRunsLoss * mission.baseAcademy;
+    totals.Fragments -= deltaRunsLoss * getFragmentYieldPerCompletion_(mission);
+    MATS.forEach(mat => {
+      totals[mat] -= deltaRunsLoss * mission.baseRewards[mat];
+      if (totals[mat] < 0 && Math.abs(totals[mat]) < 1e-7) totals[mat] = 0;
+    });
+    if (totals.Completions < 0 && Math.abs(totals.Completions) < 1e-7) totals.Completions = 0;
+    if (totals.Academy < 0 && Math.abs(totals.Academy) < 1e-7) totals.Academy = 0;
+    if (totals.Fragments < 0 && Math.abs(totals.Fragments) < 1e-7) totals.Fragments = 0;
+  }
+
+  function currentUtility() {
+    let u = 0;
+    MATS.forEach(mat => {
+      const w = weights[mat] || 1.0;
+      u += w * Math.log(totals[mat] + 1);
+    });
+    return u;
+  }
+
+  function getResourceUtilityAdd_(mission, deltaRuns) {
+    let deltaU = 0;
+    let useful = false;
+    MATS.forEach(mat => {
+      const gain = deltaRuns * mission.baseRewards[mat];
+      if (gain <= 0) return;
+      useful = true;
+      const wt = weights[mat] || 1.0;
+      deltaU += wt * (Math.log(totals[mat] + gain + 1) - Math.log(totals[mat] + 1));
+    });
+    return useful ? deltaU : 0;
+  }
+
+  function getResourceUtilityLoss_(mission, deltaRunsLoss) {
+    let deltaLoss = 0;
+    MATS.forEach(mat => {
+      const loss = deltaRunsLoss * mission.baseRewards[mat];
+      if (loss <= 0) return;
+      const wt = weights[mat] || 1.0;
+      const oldVal = totals[mat];
+      const newVal = Math.max(0, oldVal - loss);
+      deltaLoss += wt * (Math.log(oldVal + 1) - Math.log(newVal + 1));
+    });
+    return deltaLoss;
+  }
+
+  function getFarmAddMetrics(mission, type) {
+    if (!mission || mission.isCampaign) return null;
+    if (mission.assignedUnits >= mission.cap) return null;
+    const power = workerPowers[type];
+    if (!power || power <= 0) return null;
+
+    const oldRuns = mission.currentRunsPerHour;
+    const newRuns = missionRunsPerHour(mission.baseMins, mission.currentPower + power);
+    const deltaRuns = newRuns - oldRuns;
+    if (deltaRuns <= EPS) return null;
+
+    const resourceRaw = getResourceUtilityAdd_(mission, deltaRuns);
+    const fragmentRaw = deltaRuns * getFragmentYieldPerCompletion_(mission);
+    let baseRaw = 0;
+
+    if (isResourcesMode) {
+      if (resourceRaw <= EPS) return null;
+      baseRaw = resourceRaw;
+    } else if (isAcademyMode) {
+      baseRaw = deltaRuns * mission.baseAcademy;
+    } else if (isFragmentsMode || isFragResMode) {
+      baseRaw = fragmentRaw;
+    } else if (isMaxCompMode) {
+      baseRaw = deltaRuns;
+    } else {
+      baseRaw = deltaRuns;
+    }
+
+    if (baseRaw <= EPS) return null;
+    return { deltaRuns, baseRaw, fragmentRaw, resourceRaw };
+  }
+
+  function getFarmRemoveMetrics(mission, type) {
+    if (!mission || mission.isCampaign) return null;
+    const cnt = missionWorkerCounts[mission.name][type] || 0;
+    if (cnt <= 0) return null;
+    const power = workerPowers[type];
+    if (!power || power <= 0) return null;
+
+    const oldRuns = mission.currentRunsPerHour;
+    const newPower = mission.currentPower - power;
+    const newRuns = newPower > 0 ? missionRunsPerHour(mission.baseMins, newPower) : 0;
+    const deltaRunsLoss = oldRuns - newRuns;
+    if (deltaRunsLoss <= EPS) return null;
+
+    const resourceLossRaw = getResourceUtilityLoss_(mission, deltaRunsLoss);
+    const fragmentLossRaw = deltaRunsLoss * getFragmentYieldPerCompletion_(mission);
+    let baseLossRaw = 0;
+
+    if (isResourcesMode) {
+      baseLossRaw = resourceLossRaw;
+    } else if (isAcademyMode) {
+      baseLossRaw = deltaRunsLoss * mission.baseAcademy;
+    } else if (isFragmentsMode || isFragResMode) {
+      baseLossRaw = fragmentLossRaw;
+    } else if (isMaxCompMode) {
+      baseLossRaw = deltaRunsLoss;
+    } else {
+      baseLossRaw = deltaRunsLoss;
+    }
+
+    if (baseLossRaw <= EPS) return null;
+    return { deltaRunsLoss, baseLossRaw, fragmentLossRaw, resourceLossRaw };
+  }
+
+  function getCampaignAddRaw(type) {
+    if (!ui.campaignEnabled || !campaignMission) return 0;
+    if (campaignMission.assignedUnits >= campaignMission.cap) return 0;
+    const power = workerPowers[type];
+    if (!power || power <= 0) return 0;
+
+    const oldETA = campaignETAHours(campaignMission, campaignMission.currentPower);
+    const newETA = campaignETAHours(campaignMission, campaignMission.currentPower + power);
+
+    if (!isFinite(newETA) || newETA <= 0) return 0;
+    if (!isFinite(oldETA)) return 1 / newETA;
+    return Math.max(0, (oldETA - newETA) / Math.max(oldETA, EPS));
+  }
+
+  function seedCampaignWithOneWorker_() {
+    if (!ui.campaignEnabled || !campaignMission) return;
+    if (campaignMission.currentPower > 0) return;
+    if (campaignMission.assignedUnits >= campaignMission.cap) return;
+
+    let bestType = null;
+    let bestRaw = 0;
+    TYPE_ORDER.forEach(type => {
+      const worker = workers[type];
+      if (!worker || worker.count <= 0 || worker.power <= 0) return;
+      const raw = getCampaignAddRaw(type);
+      if (raw > bestRaw) {
+        bestRaw = raw;
+        bestType = type;
+      }
+    });
+
+    if (!bestType) return;
+    addAssignment(campaignMission.name, bestType, 1);
+    addWorkerToMission(campaignMission, bestType);
+    workers[bestType].count--;
+  }
+
+  function getCampaignRemoveLossRaw(type) {
+    if (!ui.campaignEnabled || !campaignMission) return 0;
+    const cnt = missionWorkerCounts[campaignMission.name][type] || 0;
+    if (cnt <= 0) return 0;
+    const power = workerPowers[type];
+    if (!power || power <= 0) return 0;
+    const oldETA = campaignETAHours(campaignMission, campaignMission.currentPower);
+    if (!isFinite(oldETA) || oldETA <= 0) return 0;
+
+    const remainingPower = campaignMission.currentPower - power;
+    if (remainingPower <= 0) return 1 / oldETA;
+    const newETA = campaignETAHours(campaignMission, remainingPower);
+    if (!isFinite(newETA)) return 1 / oldETA;
+    return Math.max(0, (newETA - oldETA) / Math.max(oldETA, EPS));
+  }
+
+  function getSolutionSummary_() {
+    return {
+      resourceUtility: currentUtility(),
+      fragments: totals.Fragments,
+      academy: totals.Academy,
+      completions: totals.Completions
+    };
+  }
+
+  function isSummaryBetter_(cand, incumbent) {
+    if (!incumbent) return true;
+    if (isResourcesMode) {
+      if (cand.resourceUtility > incumbent.resourceUtility + EPS) return true;
+      if (cand.resourceUtility < incumbent.resourceUtility - EPS) return false;
+      return cand.fragments > incumbent.fragments + EPS;
+    }
+    if (isAcademyMode) {
+      if (cand.academy > incumbent.academy + EPS) return true;
+      if (cand.academy < incumbent.academy - EPS) return false;
+      return cand.completions > incumbent.completions + EPS;
+    }
+    if (isMaxCompMode) {
+      if (cand.completions > incumbent.completions + EPS) return true;
+      if (cand.completions < incumbent.completions - EPS) return false;
+      return cand.fragments > incumbent.fragments + EPS;
+    }
+    if (isFragmentsMode) {
+      if (cand.fragments > incumbent.fragments + EPS) return true;
+      if (cand.fragments < incumbent.fragments - EPS) return false;
+      return cand.resourceUtility > incumbent.resourceUtility + EPS;
+    }
+    if (isFragResMode) {
+      if (cand.fragments > incumbent.fragments + EPS) return true;
+      if (cand.fragments < incumbent.fragments - EPS) return false;
+      return cand.resourceUtility > incumbent.resourceUtility + EPS;
+    }
+    return cand.completions > incumbent.completions + EPS;
+  }
+
+  function snapshotState_() {
+    return {
+      assignmentMap: Object.assign({}, assignmentMap),
+      totals: Object.assign({}, totals),
+      workerCounts: TYPE_ORDER.reduce((acc, type) => {
+        acc[type] = workers[type] ? workers[type].count : 0;
+        return acc;
+      }, {}),
+      missionFields: missions.map(m => ({
+        assignedUnits: m.assignedUnits,
+        currentPower: m.currentPower,
+        currentRunsPerHour: m.currentRunsPerHour
+      })),
+      missionWorkerCounts: JSON.parse(JSON.stringify(missionWorkerCounts))
+    };
+  }
+
+  function restoreState_(snap) {
+    assignmentMap = Object.assign({}, snap.assignmentMap);
+    totals = Object.assign({}, snap.totals);
+    missionWorkerCounts = JSON.parse(JSON.stringify(snap.missionWorkerCounts));
+    TYPE_ORDER.forEach(type => {
+      if (workers[type]) workers[type].count = snap.workerCounts[type] || 0;
+    });
+    missions.forEach((m, idx) => {
+      const s = snap.missionFields[idx];
+      m.assignedUnits = s.assignedUnits;
+      m.currentPower = s.currentPower;
+      m.currentRunsPerHour = s.currentRunsPerHour;
+    });
+  }
+
+  function roughFragmentScore_(mission, type) {
+    const power = workerPowers[type];
+    if (!power || mission.isCampaign || mission.assignedUnits >= mission.cap) return -1;
+    const oldRuns = mission.currentRunsPerHour;
+    const newRuns = missionRunsPerHour(mission.baseMins, mission.currentPower + power);
+    const deltaRuns = newRuns - oldRuns;
+    if (deltaRuns <= EPS) return -1;
+    return deltaRuns * getFragmentYieldPerCompletion_(mission);
+  }
+
+  function roughResourceScore_(mission, type) {
+    const power = workerPowers[type];
+    if (!power || mission.isCampaign || mission.assignedUnits >= mission.cap) return -1;
+    const oldRuns = mission.currentRunsPerHour;
+    const newRuns = missionRunsPerHour(mission.baseMins, mission.currentPower + power);
+    const deltaRuns = newRuns - oldRuns;
+    if (deltaRuns <= EPS) return -1;
+    let score = 0;
+    MATS.forEach(mat => {
+      score += deltaRuns * mission.baseRewards[mat] * (weights[mat] || 1.0);
+    });
+    return score;
+  }
+
+  function getCandidateMissionsForType_(type) {
+    const currentAssigned = [];
+    const fragmentRanked = [];
+    const resourceRanked = [];
+    missions.forEach(mission => {
+      if (mission.isCampaign) return;
+      if ((missionWorkerCounts[mission.name][type] || 0) > 0 && mission.assignedUnits < mission.cap) {
+        currentAssigned.push(mission);
+      }
+      fragmentRanked.push({ mission, s: roughFragmentScore_(mission, type) });
+      resourceRanked.push({ mission, s: roughResourceScore_(mission, type) });
+    });
+    fragmentRanked.sort((a, b) => b.s - a.s);
+    resourceRanked.sort((a, b) => b.s - a.s);
+
+    const selected = {};
+    const out = [];
+    function addMission_(m) {
+      if (!m || selected[m.name]) return;
+      selected[m.name] = true;
+      out.push(m);
+    }
+    currentAssigned.forEach(addMission_);
+    fragmentRanked.slice(0, FRAGMENT_SHORTLIST_SIZE).forEach(x => addMission_(x.mission));
+    resourceRanked.slice(0, RESOURCE_SHORTLIST_SIZE).forEach(x => addMission_(x.mission));
+    return out;
+  }
+
+  function chooseFromRanked_(ranked, randomize, phase) {
+    if (!ranked || ranked.length === 0) return null;
+    if (!randomize || ranked.length === 1) return ranked[0];
+    let topK = MULTISTART_TOP_K;
+    if (phase > 0.70) topK = 1;
+    else if (phase > 0.40) topK = Math.min(2, ranked.length);
+    const pool = ranked.slice(0, Math.min(topK, ranked.length));
+    let totalWeight = 0;
+    const localWeights = [];
+    for (let i = 0; i < pool.length; i++) {
+      const w = topK - i;
+      localWeights.push(w);
+      totalWeight += w;
+    }
+    let r = Math.random() * totalWeight;
+    for (let i = 0; i < pool.length; i++) {
+      r -= localWeights[i];
+      if (r <= 0) return pool[i];
+    }
+    return pool[0];
+  }
+
+  function executeGreedyAllocation_(randomize) {
+    const totalWorkersAtStart = TYPE_ORDER.reduce((s, t) => s + ((workers[t] && workers[t].count) || 0), 0);
+    while (true) {
+      let candidates = [];
+      let maxBaseRaw = 0;
+      let maxCampRaw = 0;
+
+      const effW = effectiveCampaignWeight();
+      const eta = currentCampaignETA();
+      const campaignUrgent = ui.campaignEnabled && campaignMission && (!isFinite(eta) || effW >= 0.50);
+
+      for (let ti = 0; ti < TYPE_ORDER.length; ti++) {
+        const type = TYPE_ORDER[ti];
+        const worker = workers[type];
+        if (!worker || worker.count <= 0 || worker.power <= 0) continue;
+        const candidateMissions = getCandidateMissionsForType_(type);
+        for (let mi = 0; mi < candidateMissions.length; mi++) {
+          const mission = candidateMissions[mi];
+          const farm = getFarmAddMetrics(mission, type);
+          if (!farm) continue;
+          maxBaseRaw = Math.max(maxBaseRaw, farm.baseRaw);
+          candidates.push({
+            kind: "farm",
+            mission, type,
+            power: worker.power,
+            deltaRuns: farm.deltaRuns,
+            baseRaw: farm.baseRaw,
+            fragmentRaw: farm.fragmentRaw || 0,
+            resourceRaw: farm.resourceRaw || 0,
+            campRaw: 0
+          });
+        }
+      }
+
+      if (ui.campaignEnabled && campaignMission) {
+        for (let ti = 0; ti < TYPE_ORDER.length; ti++) {
+          const type = TYPE_ORDER[ti];
+          const worker = workers[type];
+          if (!worker || worker.count <= 0 || worker.power <= 0) continue;
+          const campRaw = getCampaignAddRaw(type);
+          if (campRaw <= EPS) continue;
+          maxCampRaw = Math.max(maxCampRaw, campRaw);
+          candidates.push({
+            kind: "campaign",
+            mission: campaignMission,
+            type,
+            power: worker.power,
+            deltaRuns: 0,
+            baseRaw: 0,
+            fragmentRaw: 0,
+            resourceRaw: 0,
+            campRaw
+          });
+        }
+      }
+
+      if (candidates.length === 0) break;
+
+      const invMaxBase = maxBaseRaw > EPS ? 1 / maxBaseRaw : 0;
+      const invMaxCamp = maxCampRaw > EPS ? 1 / maxCampRaw : 0;
+
+      candidates.forEach(c => {
+        c.baseNorm = c.baseRaw * invMaxBase;
+        c.campNorm = c.campRaw * invMaxCamp;
+        c.finalScore = (1 - effW) * c.baseNorm + effW * c.campNorm;
+      });
+
+      candidates.sort((a, b) => b.finalScore - a.finalScore);
+      const best = candidates[0];
+      if (!best || best.finalScore <= EPS) break;
+
+      const threshold = best.finalScore * (1 - NEAR_BEST_POOL_PCT);
+      const pool = candidates.filter(c => c.finalScore + EPS >= threshold);
+
+      pool.sort((a, b) => {
+        const df = b.finalScore - a.finalScore;
+        if (Math.abs(df) > 1e-12) return df;
+        if (campaignUrgent) {
+          const dc = b.campNorm - a.campNorm;
+          if (Math.abs(dc) > 1e-12) return dc;
+        } else {
+          const db = b.baseNorm - a.baseNorm;
+          if (Math.abs(db) > 1e-12) return db;
+        }
+        const dfrag = (b.fragmentRaw || 0) - (a.fragmentRaw || 0);
+        if (Math.abs(dfrag) > 1e-12) return dfrag;
+        const de = (b.finalScore / Math.max(b.power, EPS)) - (a.finalScore / Math.max(a.power, EPS));
+        if (Math.abs(de) > 1e-12) return de;
+        return a.power - b.power;
+      });
+
+      const remainingWorkers = TYPE_ORDER.reduce((s, t) => s + ((workers[t] && workers[t].count) || 0), 0);
+      const phase = totalWorkersAtStart > 0 ? 1 - (remainingWorkers / totalWorkersAtStart) : 1;
+      const pick = chooseFromRanked_(pool, randomize, phase);
+      if (!pick || pick.finalScore <= EPS) break;
+
+      const mission = pick.mission;
+      const type = pick.type;
+      const worker = workers[type];
+      if (!worker || worker.count <= 0) break;
+
+      addAssignment(mission.name, type, 1);
+      addWorkerToMission(mission, type);
+      worker.count--;
+
+      if (pick.kind === "farm") {
+        addFarmContributionToTotals(mission, pick.deltaRuns);
+      }
+    }
+  }
+
+  function polishFarmSolution_() {
+    let movesMade = 0;
+    for (let pass = 0; pass < LOCAL_POLISH_MAX_PASSES; pass++) {
+      let improved = false;
+      outerLoop:
+      for (let mi = 0; mi < missions.length; mi++) {
+        const fromMission = missions[mi];
+        if (fromMission.isCampaign) continue;
+
+        for (let ti = 0; ti < TYPE_ORDER.length; ti++) {
+          const type = TYPE_ORDER[ti];
+          const cnt = missionWorkerCounts[fromMission.name][type] || 0;
+          if (cnt <= 0) continue;
+
+          const baseSnap = snapshotState_();
+          const baseSummary = getSolutionSummary_();
+          const rem = getFarmRemoveMetrics(fromMission, type);
+          if (!rem) continue;
+
+          removeWorkerFromMission(fromMission, type);
+          addAssignment(fromMission.name, type, -1);
+          workers[type].count++;
+          removeFarmContributionFromTotals(fromMission, rem.deltaRunsLoss);
+
+          let bestSnap = null;
+          let bestSummary = baseSummary;
+
+          for (let mj = 0; mj < missions.length; mj++) {
+            const toMission = missions[mj];
+            if (toMission.isCampaign) continue;
+            if (toMission.name === fromMission.name) continue;
+
+            const add = getFarmAddMetrics(toMission, type);
+            if (!add) continue;
+
+            addWorkerToMission(toMission, type);
+            addAssignment(toMission.name, type, 1);
+            workers[type].count--;
+            addFarmContributionToTotals(toMission, add.deltaRuns);
+
+            const candSummary = getSolutionSummary_();
+            if (isSummaryBetter_(candSummary, bestSummary)) {
+              bestSummary = candSummary;
+              bestSnap = snapshotState_();
+            }
+
+            const undo = getFarmRemoveMetrics(toMission, type);
+            removeWorkerFromMission(toMission, type);
+            addAssignment(toMission.name, type, -1);
+            workers[type].count++;
+            removeFarmContributionFromTotals(toMission, undo.deltaRunsLoss);
+          }
+
+          restoreState_(baseSnap);
+
+          if (bestSnap) {
+            restoreState_(bestSnap);
+            improved = true;
+            movesMade++;
+            if (movesMade >= LOCAL_POLISH_MAX_MOVES) return;
+            break outerLoop;
+          }
+        }
+      }
+      if (!improved) break;
+    }
+  }
+
+  function polishByWorkerType_() {
+    TYPE_ORDER.forEach(type => {
+      const baseSnap = snapshotState_();
+      const baseSummary = getSolutionSummary_();
+      const baseUnassigned = baseSnap.workerCounts[type] || 0;
+
+      let removable = [];
+      missions.forEach(mission => {
+        if (mission.isCampaign) return;
+        const cnt = missionWorkerCounts[mission.name][type] || 0;
+        if (cnt <= 0) return;
+        const rem = getFarmRemoveMetrics(mission, type);
+        const score = rem ? rem.baseLossRaw : 999999;
+        removable.push({ mission, cnt, score });
+      });
+
+      removable.sort((a, b) => a.score - b.score);
+      let freed = 0;
+      removable.forEach(x => {
+        while (x.cnt > 0 && freed < TYPE_REBUILD_MAX_UNITS) {
+          const rem = getFarmRemoveMetrics(x.mission, type);
+          if (!rem) break;
+          removeWorkerFromMission(x.mission, type);
+          addAssignment(x.mission.name, type, -1);
+          workers[type].count++;
+          removeFarmContributionFromTotals(x.mission, rem.deltaRunsLoss);
+          x.cnt--;
+          freed++;
+        }
+      });
+
+      if (freed <= 0) {
+        restoreState_(baseSnap);
+        return;
+      }
+
+      while ((workers[type] && workers[type].count > baseUnassigned)) {
+        const candidateMissions = getCandidateMissionsForType_(type);
+        let best = null;
+        candidateMissions.forEach(mission => {
+          const add = getFarmAddMetrics(mission, type);
+          if (!add) return;
+          if (!best || add.baseRaw > best.add.baseRaw) best = { mission, add };
+        });
+        if (!best) break;
+        addWorkerToMission(best.mission, type);
+        addAssignment(best.mission.name, type, 1);
+        workers[type].count--;
+        addFarmContributionToTotals(best.mission, best.add.deltaRuns);
+      }
+
+      const candSummary = getSolutionSummary_();
+      if (!isSummaryBetter_(candSummary, baseSummary)) restoreState_(baseSnap);
+    });
+  }
+
+  function localImproveCampaignVsFarm_() {
+    for (let iter = 0; iter < LOCAL_IMPROVE_MAX_ITERS; iter++) {
+      const effW = effectiveCampaignWeight();
+      let maxBaseRaw = 0;
+      let maxCampRaw = 0;
+      let bestSecondary = -Infinity;
+
+      for (let ti = 0; ti < TYPE_ORDER.length; ti++) {
+        const type = TYPE_ORDER[ti];
+        const campAdd = getCampaignAddRaw(type);
+        if (campAdd > maxCampRaw) maxCampRaw = campAdd;
+        const campLoss = getCampaignRemoveLossRaw(type);
+        if (campLoss > maxCampRaw) maxCampRaw = campLoss;
+
+        for (let mi = 0; mi < missions.length; mi++) {
+          const mission = missions[mi];
+          if (mission.isCampaign) continue;
+          const add = getFarmAddMetrics(mission, type);
+          if (add && add.baseRaw > maxBaseRaw) maxBaseRaw = add.baseRaw;
+          const rem = getFarmRemoveMetrics(mission, type);
+          if (rem && rem.baseLossRaw > maxBaseRaw) maxBaseRaw = rem.baseLossRaw;
+        }
+      }
+
+      const baseScale = maxBaseRaw > EPS ? maxBaseRaw : 1;
+      const campScale = maxCampRaw > EPS ? maxCampRaw : 1;
+      let bestMove = null;
+      let bestDelta = 0;
+
+      for (let ti = 0; ti < TYPE_ORDER.length; ti++) {
+        const type = TYPE_ORDER[ti];
+        const cntOnCampaign = missionWorkerCounts[campaignMission.name][type] || 0;
+        if (cntOnCampaign <= 0) continue;
+        const campLoss = getCampaignRemoveLossRaw(type);
+        if (campLoss <= EPS) continue;
+
+        for (let mi = 0; mi < missions.length; mi++) {
+          const mission = missions[mi];
+          if (mission.isCampaign) continue;
+          const farmAdd = getFarmAddMetrics(mission, type);
+          if (!farmAdd) continue;
+          const deltaNorm = (1 - effW) * (farmAdd.baseRaw / baseScale) - effW * (campLoss / campScale);
+          const secondary = isFragResMode ? (farmAdd.resourceRaw || 0) : 0;
+          if (deltaNorm > bestDelta + EPS || (isFragResMode && Math.abs(deltaNorm - bestDelta) <= EPS && secondary > bestSecondary + EPS)) {
+            bestDelta = deltaNorm;
+            bestSecondary = secondary;
+            bestMove = { dir: "campaign_to_farm", type, mission, deltaRuns: farmAdd.deltaRuns };
+          }
+        }
+      }
+
+      for (let mi = 0; mi < missions.length; mi++) {
+        const mission = missions[mi];
+        if (mission.isCampaign) continue;
+        for (let ti = 0; ti < TYPE_ORDER.length; ti++) {
+          const type = TYPE_ORDER[ti];
+          const cntOnMission = missionWorkerCounts[mission.name][type] || 0;
+          if (cntOnMission <= 0) continue;
+          const farmLoss = getFarmRemoveMetrics(mission, type);
+          if (!farmLoss) continue;
+          const campGain = getCampaignAddRaw(type);
+          if (campGain <= EPS) continue;
+          const deltaNorm = effW * (campGain / campScale) - (1 - effW) * (farmLoss.baseLossRaw / baseScale);
+          const secondary = isFragResMode ? -(farmLoss.resourceLossRaw || 0) : 0;
+          if (deltaNorm > bestDelta + EPS || (isFragResMode && Math.abs(deltaNorm - bestDelta) <= EPS && secondary > bestSecondary + EPS)) {
+            bestDelta = deltaNorm;
+            bestSecondary = secondary;
+            bestMove = { dir: "farm_to_campaign", type, mission, deltaRunsLoss: farmLoss.deltaRunsLoss };
+          }
+        }
+      }
+
+      if (!bestMove || bestDelta <= EPS) break;
+      if (bestMove.dir === "campaign_to_farm") {
+        removeWorkerFromMission(campaignMission, bestMove.type);
+        addAssignment(campaignMission.name, bestMove.type, -1);
+        workers[bestMove.type].count++;
+        addWorkerToMission(bestMove.mission, bestMove.type);
+        addAssignment(bestMove.mission.name, bestMove.type, 1);
+        workers[bestMove.type].count--;
+        addFarmContributionToTotals(bestMove.mission, bestMove.deltaRuns);
+      } else if (bestMove.dir === "farm_to_campaign") {
+        removeWorkerFromMission(bestMove.mission, bestMove.type);
+        addAssignment(bestMove.mission.name, bestMove.type, -1);
+        removeFarmContributionFromTotals(bestMove.mission, bestMove.deltaRunsLoss);
+        workers[bestMove.type].count++;
+        addWorkerToMission(campaignMission, bestMove.type);
+        addAssignment(campaignMission.name, bestMove.type, 1);
+        workers[bestMove.type].count--;
+      }
+    }
+  }
+
+  seedCampaignWithOneWorker_();
+  const emptySnap = snapshotState_();
+  const runResults = [];
+  let bestSoFar = null;
+  let staleRuns = 0;
+  let runIdx = 0;
+
+  while (runIdx < MULTISTART_MAX_RUNS) {
+    restoreState_(emptySnap);
+    const randomize = runIdx > 0;
+    executeGreedyAllocation_(randomize);
+
+    if (ui.campaignEnabled && campaignMission && !isFragResMode) {
+      localImproveCampaignVsFarm_();
+    }
+    if (!ui.campaignEnabled) {
+      polishFarmSolution_();
+    }
+
+    const result = {
+      summary: getSolutionSummary_(),
+      snap: snapshotState_(),
+      randomized: randomize
+    };
+    runResults.push(result);
+
+    if (!bestSoFar || isSummaryBetter_(result.summary, bestSoFar.summary)) {
+      bestSoFar = result;
+      staleRuns = 0;
+    } else {
+      staleRuns++;
+    }
+    runIdx++;
+    if (runIdx >= MULTISTART_MIN_RUNS && staleRuns >= MULTISTART_STALE_LIMIT) break;
+  }
+
+  function chooseBestRun_(results) {
+    if (!results || results.length === 0) return null;
+    if (isFragResMode) {
+      let bestFragments = 0;
+      results.forEach(r => {
+        if (r.summary.fragments > bestFragments) bestFragments = r.summary.fragments;
+      });
+      const threshold = bestFragments * 0.95;
+      const inBand = results.filter(r => r.summary.fragments + EPS >= threshold);
+      inBand.sort((a, b) => {
+        const du = b.summary.resourceUtility - a.summary.resourceUtility;
+        if (Math.abs(du) > EPS) return du;
+        const df = b.summary.fragments - a.summary.fragments;
+        if (Math.abs(df) > EPS) return df;
+        const dc = b.summary.completions - a.summary.completions;
+        if (Math.abs(dc) > EPS) return dc;
+        return b.summary.academy - a.summary.academy;
+      });
+      return inBand[0] || results[0];
+    }
+    let best = results[0];
+    for (let i = 1; i < results.length; i++) {
+      if (isSummaryBetter_(results[i].summary, best.summary)) best = results[i];
+    }
+    return best;
+  }
+
+  const bestRun = chooseBestRun_(runResults);
+  if (bestRun) restoreState_(bestRun.snap);
+
+  if (!ui.campaignEnabled) {
+    polishByWorkerType_();
+    polishFarmSolution_();
+  }
+
+  const assignments = getAssignmentsArray_().sort((a, b) => {
+    const nameComp = a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
+    if (nameComp !== 0) return nameComp;
+    const rankA = TYPE_RANK[a.type] || 99;
+    const rankB = TYPE_RANK[b.type] || 99;
+    return rankA - rankB;
+  });
+
+  return {
+    assignments,
+    totals,
+    campaignETA: ui.campaignEnabled && campaignMission ? currentCampaignETA() : Infinity,
+    globalSpeedMult,
+    modeUsed: ui.modeRaw,
+    debug: {
+      missionsConsidered: missions.filter(m => !m.isCampaign).length,
+      campaignMission: campaignMission ? campaignMission.name : "—",
+      multistartRuns: runResults.length,
+      ouroUnlocked: ui.ouroUnlocked ? "Yes" : "No"
+    }
+  };
+}
+
+function formatNumber_(value, digits = 1) {
+  if (!isFinite(value)) return "∞";
+  return new Intl.NumberFormat(undefined, {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits
+  }).format(value);
+}
+
+function renderResult_(ui, result) {
+  document.getElementById('campaignEtaText').textContent = isFinite(result.campaignETA) ? formatNumber_(result.campaignETA, 3) : "—";
+  document.getElementById('modeUsedText').textContent = result.modeUsed;
+
+  const totalsBody = document.getElementById('totalsBody');
+  const totalsRows = [];
+  MATS.forEach(mat => totalsRows.push(`<tr><td>${mat}</td><td>${formatNumber_(result.totals[mat] || 0, 1)}</td></tr>`));
+  totalsRows.push(`<tr><td>Academy Pts</td><td>${formatNumber_(result.totals.Academy || 0, 1)}</td></tr>`);
+  totalsRows.push(`<tr><td>Completions</td><td>${formatNumber_(result.totals.Completions || 0, 1)}</td></tr>`);
+  totalsRows.push(`<tr><td>Fragments (est.)</td><td>${formatNumber_(result.totals.Fragments || 0, 3)}</td></tr>`);
+  totalsBody.innerHTML = totalsRows.join('');
+
+  const distributionBody = document.getElementById('distributionBody');
+  if (result.assignments.length === 0) {
+    distributionBody.innerHTML = '<tr><td colspan="5">No assignments were generated.</td></tr>';
+  } else {
+    const rowMap = new Map();
+    result.assignments.forEach(a => {
+      if (!rowMap.has(a.name)) {
+        rowMap.set(a.name, {
+          name: a.name,
+          'Mining Pod': 0,
+          'Fireteam Carrier': 0,
+          'Titan Hauler': 0,
+          'Combat Corvette': 0
+        });
+      }
+      rowMap.get(a.name)[a.type] = a.count;
+    });
+
+    const missionRows = Array.from(rowMap.values());
+    distributionBody.innerHTML = missionRows.map(row => {
+      const mining = row['Mining Pod'] ? formatNumber_(row['Mining Pod'], 0) : '<span class="zero-cell">-</span>';
+      const fireteam = row['Fireteam Carrier'] ? formatNumber_(row['Fireteam Carrier'], 0) : '<span class="zero-cell">-</span>';
+      const titan = row['Titan Hauler'] ? formatNumber_(row['Titan Hauler'], 0) : '<span class="zero-cell">-</span>';
+      const corvette = row['Combat Corvette'] ? formatNumber_(row['Combat Corvette'], 0) : '<span class="zero-cell">-</span>';
+      return `<tr><td>${row.name}</td><td>${mining}</td><td>${fireteam}</td><td>${titan}</td><td>${corvette}</td></tr>`;
+    }).join('');
+  }
+}
+
+function renderError_(err) {
+  document.getElementById('campaignEtaText').textContent = '—';
+  document.getElementById('modeUsedText').textContent = modeSelect.value;
+  document.getElementById('totalsBody').innerHTML = `<tr><td colspan="2">${err.message}</td></tr>`;
+  document.getElementById('distributionBody').innerHTML = '<tr><td colspan="5">No mission distribution available.</td></tr>';
+}
+
+function setStatus_(text) {
+  document.getElementById('statusText').textContent = text;
+}
+
+initPersistence_();
+clearOutput_();
