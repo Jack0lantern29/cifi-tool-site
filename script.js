@@ -465,8 +465,6 @@ function getGlobalSpeedMultiplierFromUi_() {
   const research70 = parseFloat(document.getElementById('research70').value) || 0;
   const research80 = parseFloat(document.getElementById('research80').value) || 0;
   const relic3 = ouroToggle.checked ? (parseFloat(document.getElementById('relic3').value) || 0) : 0;
-  const ts07 = ouroToggle.checked ? document.getElementById('ts07').checked : false;
-
   let mult = 1.0;
   mult *= engineeringBadge ? 2.0 : 1.0;
   mult *= Math.pow(1.0311, swarmLevel);
@@ -478,7 +476,6 @@ function getGlobalSpeedMultiplierFromUi_() {
   mult *= (research80 >= 5 ? 1.5 : 1.0);
   if (ouroToggle.checked) {
     mult *= (relic3 * 0.03) + 1.0;
-    mult *= ts07 ? 2.0 : 1.0;
   }
   return mult;
 }
@@ -515,7 +512,8 @@ function getUiState_() {
     campaignTargetName: document.getElementById('campaignTarget').value,
     campaignFocus: document.getElementById('campaignFocus').value,
     relic11Level: parseInt(document.getElementById('relic11').value || '0', 10) || 0,
-    globalSpeedMult: getGlobalSpeedMultiplierFromUi_()
+    globalSpeedMult: getGlobalSpeedMultiplierFromUi_(),
+    ts07Enabled: ouroToggle.checked ? document.getElementById('ts07').checked : false
   };
 }
 
@@ -631,6 +629,7 @@ function solveOptimizer_(ui, missions, campaignMission) {
   const workerPowers = ui.workerPowers;
   const weights = ui.weights;
   const globalSpeedMult = ui.globalSpeedMult;
+  const ts07Mult = ui.ts07Enabled ? 2.0 : 1.0;
   const fragmentsPerCompletion = ui.fragmentsPerCompletion;
   let assignmentMap = {};
   let totals = { Academy: 0, Completions: 0, Fragments: 0 };
@@ -722,20 +721,20 @@ function solveOptimizer_(ui, missions, campaignMission) {
   }
 
   function addFarmContributionToTotals(mission, deltaRuns) {
-    totals.Completions += deltaRuns;
-    totals.Academy += deltaRuns * mission.baseAcademy;
-    totals.Fragments += deltaRuns * getFragmentYieldPerCompletion_(mission);
+    totals.Completions += deltaRuns * ts07Mult;
+    totals.Academy += deltaRuns * ts07Mult * mission.baseAcademy;
+    totals.Fragments += deltaRuns * ts07Mult * getFragmentYieldPerCompletion_(mission);
     MATS.forEach(mat => {
-      totals[mat] += deltaRuns * mission.baseRewards[mat];
+      totals[mat] += deltaRuns * ts07Mult * mission.baseRewards[mat];
     });
   }
 
   function removeFarmContributionFromTotals(mission, deltaRunsLoss) {
-    totals.Completions -= deltaRunsLoss;
-    totals.Academy -= deltaRunsLoss * mission.baseAcademy;
-    totals.Fragments -= deltaRunsLoss * getFragmentYieldPerCompletion_(mission);
+    totals.Completions -= deltaRunsLoss * ts07Mult;
+    totals.Academy -= deltaRunsLoss * ts07Mult * mission.baseAcademy;
+    totals.Fragments -= deltaRunsLoss * ts07Mult * getFragmentYieldPerCompletion_(mission);
     MATS.forEach(mat => {
-      totals[mat] -= deltaRunsLoss * mission.baseRewards[mat];
+      totals[mat] -= deltaRunsLoss * ts07Mult * mission.baseRewards[mat];
       if (totals[mat] < 0 && Math.abs(totals[mat]) < 1e-7) totals[mat] = 0;
     });
     if (totals.Completions < 0 && Math.abs(totals.Completions) < 1e-7) totals.Completions = 0;
@@ -756,7 +755,7 @@ function solveOptimizer_(ui, missions, campaignMission) {
     let deltaU = 0;
     let useful = false;
     MATS.forEach(mat => {
-      const gain = deltaRuns * mission.baseRewards[mat];
+      const gain = deltaRuns * ts07Mult * mission.baseRewards[mat];
       if (gain <= 0) return;
       useful = true;
       const wt = weights[mat] || 1.0;
@@ -768,7 +767,7 @@ function solveOptimizer_(ui, missions, campaignMission) {
   function getResourceUtilityLoss_(mission, deltaRunsLoss) {
     let deltaLoss = 0;
     MATS.forEach(mat => {
-      const loss = deltaRunsLoss * mission.baseRewards[mat];
+      const loss = deltaRunsLoss * ts07Mult * mission.baseRewards[mat];
       if (loss <= 0) return;
       const wt = weights[mat] || 1.0;
       const oldVal = totals[mat];
@@ -790,20 +789,20 @@ function solveOptimizer_(ui, missions, campaignMission) {
     if (deltaRuns <= EPS) return null;
 
     const resourceRaw = getResourceUtilityAdd_(mission, deltaRuns);
-    const fragmentRaw = deltaRuns * getFragmentYieldPerCompletion_(mission);
+    const fragmentRaw = deltaRuns * ts07Mult * getFragmentYieldPerCompletion_(mission);
     let baseRaw = 0;
 
     if (isResourcesMode) {
       if (resourceRaw <= EPS) return null;
       baseRaw = resourceRaw;
     } else if (isAcademyMode) {
-      baseRaw = deltaRuns * mission.baseAcademy;
+      baseRaw = deltaRuns * ts07Mult * mission.baseAcademy;
     } else if (isFragmentsMode || isFragResMode) {
       baseRaw = fragmentRaw;
     } else if (isMaxCompMode) {
-      baseRaw = deltaRuns;
+      baseRaw = deltaRuns * ts07Mult;
     } else {
-      baseRaw = deltaRuns;
+      baseRaw = deltaRuns * ts07Mult;
     }
 
     if (baseRaw <= EPS) return null;
@@ -824,19 +823,19 @@ function solveOptimizer_(ui, missions, campaignMission) {
     if (deltaRunsLoss <= EPS) return null;
 
     const resourceLossRaw = getResourceUtilityLoss_(mission, deltaRunsLoss);
-    const fragmentLossRaw = deltaRunsLoss * getFragmentYieldPerCompletion_(mission);
+    const fragmentLossRaw = deltaRunsLoss * ts07Mult * getFragmentYieldPerCompletion_(mission);
     let baseLossRaw = 0;
 
     if (isResourcesMode) {
       baseLossRaw = resourceLossRaw;
     } else if (isAcademyMode) {
-      baseLossRaw = deltaRunsLoss * mission.baseAcademy;
+      baseLossRaw = deltaRunsLoss * ts07Mult * mission.baseAcademy;
     } else if (isFragmentsMode || isFragResMode) {
       baseLossRaw = fragmentLossRaw;
     } else if (isMaxCompMode) {
-      baseLossRaw = deltaRunsLoss;
+      baseLossRaw = deltaRunsLoss * ts07Mult;
     } else {
-      baseLossRaw = deltaRunsLoss;
+      baseLossRaw = deltaRunsLoss * ts07Mult;
     }
 
     if (baseLossRaw <= EPS) return null;
@@ -977,7 +976,7 @@ function solveOptimizer_(ui, missions, campaignMission) {
     const newRuns = missionRunsPerHour(mission.baseMins, mission.currentPower + power);
     const deltaRuns = newRuns - oldRuns;
     if (deltaRuns <= EPS) return -1;
-    return deltaRuns * getFragmentYieldPerCompletion_(mission);
+    return deltaRuns * ts07Mult * getFragmentYieldPerCompletion_(mission);
   }
 
   function roughResourceScore_(mission, type) {
@@ -989,7 +988,7 @@ function solveOptimizer_(ui, missions, campaignMission) {
     if (deltaRuns <= EPS) return -1;
     let score = 0;
     MATS.forEach(mat => {
-      score += deltaRuns * mission.baseRewards[mat] * (weights[mat] || 1.0);
+      score += deltaRuns * ts07Mult * mission.baseRewards[mat] * (weights[mat] || 1.0);
     });
     return score;
   }
