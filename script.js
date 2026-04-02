@@ -113,6 +113,12 @@ function isFx4Mission_(missionName) {
   return /^F\d+-4$/i.test(missionName);
 }
 
+const FX4_FRAGMENT_BONUS = { 'F1-4': 1, 'F2-4': 5, 'F3-4': 50, 'F4-4': 200 };
+
+function getFx4FragmentBonusMultiplier_(missionName) {
+  return FX4_FRAGMENT_BONUS[missionName] || 0;
+}
+
 const tabButtons = document.querySelectorAll('.tab-button');
 const tabPanels = document.querySelectorAll('.tab-panel');
 const jumpButtons = document.querySelectorAll('.jump-button');
@@ -566,8 +572,7 @@ function buildMissionPool_(ui) {
       cap: effectiveCap,
       baseMins: row.minutes,
       baseAcademy: row.academy || 0,
-      // FX-4 missions grant an additional fragment payout equal to the user's current base value.
-      baseFragments: isFx4Mission_(row.name) ? ui.fragmentsPerCompletion : (row.fragments || 0),
+      baseFragments: getFx4FragmentBonusMultiplier_(row.name) * ui.fragmentsPerCompletion || (row.fragments || 0),
       baseRewards: { ...row.rewards },
       isCampaign: isCampaignRow,
       assignedUnits: 0,
