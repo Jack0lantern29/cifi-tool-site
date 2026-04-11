@@ -1,4 +1,3 @@
-
 const MATS = ["Difar","Kento","Chromium","Exon","Organium","Adamorphium","Moskom","Darkseid"];
 const TYPE_ORDER = ["Mining Pod","Fireteam Carrier","Titan Hauler","Combat Corvette"];
 const TYPE_RANK = {
@@ -1313,82 +1312,96 @@ function solveOptimizer_(ui, missions, campaignMission) {
 
   function floorRebalance_() {
     if (!globalSpeedMult || globalSpeedMult <= 0) return;
-    const floorRunsPerHour = 60.0 / MIN_DURATION_MINS;
+
+    const beforeSnap = snapshotState_();
+    const beforeSummary = getSolutionSummary_();
 
     missions.forEach(mission => {
       if (mission.isCampaign) return;
-      if (mission.currentRunsPerHour < floorRunsPerHour - EPS) return;
+      TYPE_ORDER.forEach(type => {
+        const cnt = missionWorkerCounts[mission.name][type] || 0;
+        for (let i = 0; i < cnt; i++) {
+          removeWorkerFromMission(mission, type);
+          addAssignment(mission.name, type, -1);
+          workers[type].count++;
+        }
+      });
+    });
 
+    totals.Completions = 0;
+    totals.Academy = 0;
+    totals.Fragments = 0;
+    MATS.forEach(m => totals[m] = 0);
+
+    const farmBySpeed = missions
+      .filter(m => !m.isCampaign)
+      .sort((a, b) => a.baseMins - b.baseMins);
+
+    farmBySpeed.forEach(mission => {
       const minPower = mission.baseMins / (globalSpeedMult * MIN_DURATION_MINS);
       if (!isFinite(minPower) || minPower <= 0) return;
 
-      let madeProgress = true;
-      while (madeProgress) {
-        madeProgress = false;
+      let maxUnitPower = 0;
+      TYPE_ORDER.forEach(t => { if (workerPowers[t] > maxUnitPower) maxUnitPower = workerPowers[t]; });
+      if (minPower > mission.cap * maxUnitPower) return;
 
-        // Work from most expensive type down — free or downgrade one worker per pass
-        for (let ti = TYPE_ORDER.length - 1; ti >= 0; ti--) {
-          const expType = TYPE_ORDER[ti];
-          const expPower = workerPowers[expType];
-          if (!expPower || expPower <= 0) continue;
-          if (!(missionWorkerCounts[mission.name][expType] > 0)) continue;
+      const tempAlloc = {};
+      TYPE_ORDER.forEach(t => tempAlloc[t] = 0);
+      let slots = mission.cap;
+      for (let ti = 0; ti < TYPE_ORDER.length; ti++) {
+        const type = TYPE_ORDER[ti];
+        const avail = workers[type] ? workers[type].count : 0;
+        const use = Math.min(avail, slots);
+        tempAlloc[type] = use;
+        slots -= use;
+        if (slots <= 0) break;
+      }
 
-          const powerAfterRemoval = mission.currentPower - expPower;
+      let curPower = 0;
+      TYPE_ORDER.forEach(t => curPower += tempAlloc[t] * (workerPowers[t] || 0));
 
-          if (powerAfterRemoval >= minPower - EPS) {
-            // Removing this worker still holds the floor — free it directly
-            removeWorkerFromMission(mission, expType);
-            addAssignment(mission.name, expType, -1);
-            workers[expType].count++;
-            madeProgress = true;
+      while (curPower < minPower - EPS) {
+        let upgraded = false;
+        for (let ci = 0; ci < TYPE_ORDER.length; ci++) {
+          const cheapType = TYPE_ORDER[ci];
+          if (tempAlloc[cheapType] <= 0) continue;
+          const cheapPow = workerPowers[cheapType] || 0;
+          for (let ei = ci + 1; ei < TYPE_ORDER.length; ei++) {
+            const expType = TYPE_ORDER[ei];
+            const expPow = workerPowers[expType] || 0;
+            if (expPow <= cheapPow) continue;
+            const freeOfExp = (workers[expType] ? workers[expType].count : 0) - tempAlloc[expType];
+            if (freeOfExp <= 0) continue;
+            tempAlloc[cheapType]--;
+            tempAlloc[expType]++;
+            curPower += expPow - cheapPow;
+            upgraded = true;
             break;
           }
-
-          // Removal would drop below floor — try replacing with cheapest available type
-          const deficit = minPower - powerAfterRemoval;
-          for (let ui = 0; ui < ti; ui++) {
-            const cheapType = TYPE_ORDER[ui];
-            const cheapPower = workerPowers[cheapType];
-            if (!cheapPower || cheapPower <= 0 || cheapPower >= expPower) continue;
-            if (!workers[cheapType] || workers[cheapType].count <= 0) continue;
-
-            const n = Math.ceil(deficit / cheapPower);
-            if (n <= 0) continue;
-            if (workers[cheapType].count < n) continue;
-            // Replacing 1 expensive with n cheap costs n-1 extra cap slots
-            if (mission.assignedUnits + (n - 1) > mission.cap) continue;
-
-            removeWorkerFromMission(mission, expType);
-            addAssignment(mission.name, expType, -1);
-            workers[expType].count++;
-            for (let k = 0; k < n; k++) {
-              addWorkerToMission(mission, cheapType);
-              addAssignment(mission.name, cheapType, 1);
-              workers[cheapType].count--;
-            }
-
-            if (mission.currentRunsPerHour < floorRunsPerHour - EPS) {
-              // Floating-point edge — revert
-              for (let k = 0; k < n; k++) {
-                removeWorkerFromMission(mission, cheapType);
-                addAssignment(mission.name, cheapType, -1);
-                workers[cheapType].count++;
-              }
-              addWorkerToMission(mission, expType);
-              addAssignment(mission.name, expType, 1);
-              workers[expType].count--;
-            } else {
-              madeProgress = true;
-            }
-            break;
-          }
-          if (madeProgress) break;
+          if (upgraded) break;
         }
+        if (!upgraded) break;
+      }
+
+      if (curPower >= minPower - EPS) {
+        TYPE_ORDER.forEach(type => {
+          for (let i = 0; i < tempAlloc[type]; i++) {
+            addWorkerToMission(mission, type);
+            addAssignment(mission.name, type, 1);
+            workers[type].count--;
+          }
+        });
+        addFarmContributionToTotals(mission, mission.currentRunsPerHour);
       }
     });
 
-    // Assign any freed high-power workers to non-floor missions
     executeGreedyAllocation_(false);
+
+
+    const afterSummary = getSolutionSummary_();
+    if (!isSummaryBetter_(afterSummary, beforeSummary)) {
+      restoreState_(beforeSnap);
+    }
   }
 
   function polishByWorkerType_() {
