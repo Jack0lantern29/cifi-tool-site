@@ -92,7 +92,7 @@ const CURRENT_VERSION = "web-v11";
 const STORAGE_KEY = "cifi-farm-mission-optimizer-state-v1";
 const MIN_DURATION_MINS = 2.0 / 60.0;
 const EPS = 1e-9;
-const NEAR_BEST_POOL_PCT = 0.02;
+const NEAR_BEST_POOL_PCT = 0.05;
 const LOCAL_IMPROVE_MAX_ITERS = 250;
 const MULTISTART_MIN_RUNS = 3;
 const MULTISTART_MAX_RUNS = 7;
@@ -1077,6 +1077,7 @@ function solveOptimizer_(ui, missions, campaignMission) {
             baseRaw: farm.baseRaw,
             fragmentRaw: farm.fragmentRaw || 0,
             resourceRaw: farm.resourceRaw || 0,
+            efficiency: farm.baseRaw / Math.max(worker.power, EPS),
             campRaw: 0
           });
         }
@@ -1132,10 +1133,10 @@ function solveOptimizer_(ui, missions, campaignMission) {
           const db = b.baseNorm - a.baseNorm;
           if (Math.abs(db) > 1e-12) return db;
         }
+        const de = (b.efficiency || 0) - (a.efficiency || 0);
+        if (Math.abs(de) > 1e-12) return de;
         const dfrag = (b.fragmentRaw || 0) - (a.fragmentRaw || 0);
         if (Math.abs(dfrag) > 1e-12) return dfrag;
-        const de = (b.finalScore / Math.max(b.power, EPS)) - (a.finalScore / Math.max(a.power, EPS));
-        if (Math.abs(de) > 1e-12) return de;
         return a.power - b.power;
       });
 
@@ -1308,6 +1309,86 @@ function solveOptimizer_(ui, missions, campaignMission) {
 
       if (!improved) break;
     }
+  }
+
+  function floorRebalance_() {
+    if (!globalSpeedMult || globalSpeedMult <= 0) return;
+    const floorRunsPerHour = 60.0 / MIN_DURATION_MINS;
+
+    missions.forEach(mission => {
+      if (mission.isCampaign) return;
+      if (mission.currentRunsPerHour < floorRunsPerHour - EPS) return;
+
+      const minPower = mission.baseMins / (globalSpeedMult * MIN_DURATION_MINS);
+      if (!isFinite(minPower) || minPower <= 0) return;
+
+      let madeProgress = true;
+      while (madeProgress) {
+        madeProgress = false;
+
+        // Work from most expensive type down — free or downgrade one worker per pass
+        for (let ti = TYPE_ORDER.length - 1; ti >= 0; ti--) {
+          const expType = TYPE_ORDER[ti];
+          const expPower = workerPowers[expType];
+          if (!expPower || expPower <= 0) continue;
+          if (!(missionWorkerCounts[mission.name][expType] > 0)) continue;
+
+          const powerAfterRemoval = mission.currentPower - expPower;
+
+          if (powerAfterRemoval >= minPower - EPS) {
+            // Removing this worker still holds the floor — free it directly
+            removeWorkerFromMission(mission, expType);
+            addAssignment(mission.name, expType, -1);
+            workers[expType].count++;
+            madeProgress = true;
+            break;
+          }
+
+          // Removal would drop below floor — try replacing with cheapest available type
+          const deficit = minPower - powerAfterRemoval;
+          for (let ui = 0; ui < ti; ui++) {
+            const cheapType = TYPE_ORDER[ui];
+            const cheapPower = workerPowers[cheapType];
+            if (!cheapPower || cheapPower <= 0 || cheapPower >= expPower) continue;
+            if (!workers[cheapType] || workers[cheapType].count <= 0) continue;
+
+            const n = Math.ceil(deficit / cheapPower);
+            if (n <= 0) continue;
+            if (workers[cheapType].count < n) continue;
+            // Replacing 1 expensive with n cheap costs n-1 extra cap slots
+            if (mission.assignedUnits + (n - 1) > mission.cap) continue;
+
+            removeWorkerFromMission(mission, expType);
+            addAssignment(mission.name, expType, -1);
+            workers[expType].count++;
+            for (let k = 0; k < n; k++) {
+              addWorkerToMission(mission, cheapType);
+              addAssignment(mission.name, cheapType, 1);
+              workers[cheapType].count--;
+            }
+
+            if (mission.currentRunsPerHour < floorRunsPerHour - EPS) {
+              // Floating-point edge — revert
+              for (let k = 0; k < n; k++) {
+                removeWorkerFromMission(mission, cheapType);
+                addAssignment(mission.name, cheapType, -1);
+                workers[cheapType].count++;
+              }
+              addWorkerToMission(mission, expType);
+              addAssignment(mission.name, expType, 1);
+              workers[expType].count--;
+            } else {
+              madeProgress = true;
+            }
+            break;
+          }
+          if (madeProgress) break;
+        }
+      }
+    });
+
+    // Assign any freed high-power workers to non-floor missions
+    executeGreedyAllocation_(false);
   }
 
   function polishByWorkerType_() {
@@ -1699,6 +1780,8 @@ function solveOptimizer_(ui, missions, campaignMission) {
 
   const bestRun = chooseBestRun_(runResults);
   if (bestRun) restoreState_(bestRun.snap);
+
+  floorRebalance_();
 
   if (!ui.campaignEnabled) {
     polishByWorkerType_();
