@@ -1001,13 +1001,6 @@
                 "spoofing": 1,
                 "repudiation": 0
               }
-            },
-            "tools": {
-              "items": [
-                "boundary",
-                "button-remove"
-              ],
-              "name": null
             }
           },
           {
@@ -2048,7 +2041,8 @@
             "shape": "flow",
             "attrs": {
               "line": {
-                "stroke": "#333333",
+                "stroke": "red",
+                "strokeWidth": 2.5,
                 "targetMarker": {
                   "name": "block"
                 },
@@ -2069,7 +2063,7 @@
               "outOfScope": false,
               "isTrustBoundary": false,
               "reasonOutOfScope": "",
-              "hasOpenThreats": false,
+              "hasOpenThreats": true,
               "isBidirectional": false,
               "isEncrypted": true,
               "isPublicNetwork": true,
@@ -2084,9 +2078,27 @@
                   "mitigation": "The requests should require HTTP/S. This will provide confidentiality and integrity. HTTP should not be supported.",
                   "modelType": "STRIDE",
                   "id": "79cbaf10-e5a2-4fd6-9818-7f180a113938"
+                },
+                {
+                  "id": "d9841e91-f0c5-4265-a2d9-acc4f2f7900a",
+                  "title": "SQL Injection via user-supplied input",
+                  "status": "Open",
+                  "severity": "High",
+                  "type": "Tampering",
+                  "description": "An attacker submits malicious SQL syntax through the login form or any input field. The server incorporates this input directly into a database query without sanitisation, allowing the attacker to bypass authentication or extract data.",
+                  "mitigation": "Use parameterized queries for all database interactions. Apply server-side input validation. Use least-privilege database accounts so a successful injection has limited impact.",
+                  "modelType": "STRIDE",
+                  "new": false,
+                  "number": 7,
+                  "score": ""
                 }
               ],
-              "trustBoundaryIds": []
+              "trustBoundaryIds": [],
+              "threatFrequency": {
+                "tampering": 1,
+                "informationDisclosure": 0,
+                "denialOfService": 0
+              }
             },
             "labels": [
               {
@@ -2182,7 +2194,7 @@
     ],
     "diagramTop": 2,
     "reviewer": "Jane Smith",
-    "threatTop": 6
+    "threatTop": 7
   },
   "version": "2.6.0"
 }
