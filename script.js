@@ -728,7 +728,7 @@ function solveOptimizer_(ui, missions, campaignMission) {
   function addFarmContributionToTotals(mission, deltaRuns) {
     totals.Completions += deltaRuns * ts07Mult;
     totals.Academy += deltaRuns * ts07Mult * mission.baseAcademy;
-    totals.Fragments += deltaRuns * ts07Mult * getFragmentYieldPerCompletion_(mission);
+    totals.Fragments += deltaRuns * getFragmentYieldPerCompletion_(mission);
     MATS.forEach(mat => {
       totals[mat] += deltaRuns * ts07Mult * mission.baseRewards[mat];
     });
@@ -737,7 +737,7 @@ function solveOptimizer_(ui, missions, campaignMission) {
   function removeFarmContributionFromTotals(mission, deltaRunsLoss) {
     totals.Completions -= deltaRunsLoss * ts07Mult;
     totals.Academy -= deltaRunsLoss * ts07Mult * mission.baseAcademy;
-    totals.Fragments -= deltaRunsLoss * ts07Mult * getFragmentYieldPerCompletion_(mission);
+    totals.Fragments -= deltaRunsLoss * getFragmentYieldPerCompletion_(mission);
     MATS.forEach(mat => {
       totals[mat] -= deltaRunsLoss * ts07Mult * mission.baseRewards[mat];
       if (totals[mat] < 0 && Math.abs(totals[mat]) < 1e-7) totals[mat] = 0;
@@ -794,7 +794,7 @@ function solveOptimizer_(ui, missions, campaignMission) {
     if (deltaRuns <= EPS) return null;
 
     const resourceRaw = getResourceUtilityAdd_(mission, deltaRuns);
-    const fragmentRaw = deltaRuns * ts07Mult * getFragmentYieldPerCompletion_(mission);
+    const fragmentRaw = deltaRuns * getFragmentYieldPerCompletion_(mission);
     let baseRaw = 0;
 
     if (isResourcesMode) {
@@ -828,7 +828,7 @@ function solveOptimizer_(ui, missions, campaignMission) {
     if (deltaRunsLoss <= EPS) return null;
 
     const resourceLossRaw = getResourceUtilityLoss_(mission, deltaRunsLoss);
-    const fragmentLossRaw = deltaRunsLoss * ts07Mult * getFragmentYieldPerCompletion_(mission);
+    const fragmentLossRaw = deltaRunsLoss * getFragmentYieldPerCompletion_(mission);
     let baseLossRaw = 0;
 
     if (isResourcesMode) {
@@ -981,7 +981,7 @@ function solveOptimizer_(ui, missions, campaignMission) {
     const newRuns = missionRunsPerHour(mission.baseMins, mission.currentPower + power);
     const deltaRuns = newRuns - oldRuns;
     if (deltaRuns <= EPS) return -1;
-    return deltaRuns * ts07Mult * getFragmentYieldPerCompletion_(mission);
+    return deltaRuns * getFragmentYieldPerCompletion_(mission);
   }
 
   function roughResourceScore_(mission, type) {
