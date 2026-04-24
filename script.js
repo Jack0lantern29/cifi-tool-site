@@ -1891,7 +1891,7 @@ function renderResult_(ui, result) {
       const fireteam = row['Fireteam Carrier'] ? formatNumber_(row['Fireteam Carrier'], 0) : '<span class="zero-cell">-</span>';
       const titan = row['Titan Hauler'] ? formatNumber_(row['Titan Hauler'], 0) : '<span class="zero-cell">-</span>';
       const corvette = row['Combat Corvette'] ? formatNumber_(row['Combat Corvette'], 0) : '<span class="zero-cell">-</span>';
-      return `<tr><td>${row.name}</td><td>${mining}</td><td>${fireteam}</td><td>${titan}</td><td>${corvette}</td></tr>`;
+      return `<tr><td>${row.name}</td><td data-label="Mining Pod">${mining}</td><td data-label="Fireteam Carrier">${fireteam}</td><td data-label="Titan Hauler">${titan}</td><td data-label="Combat Corvette">${corvette}</td></tr>`;
     }).join('');
   }
 }

@@ -447,6 +447,29 @@ select:focus {
   .data-table tbody td {
     padding: 12px 14px;
   }
+
+  .data-table td[data-label] {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .data-table td[data-label]::before {
+    content: attr(data-label);
+    font-weight: 700;
+    color: rgba(180, 200, 240, 0.6);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    flex: 0 0 auto;
+  }
+
+  .data-table td[data-label] > input,
+  .data-table td[data-label] > select {
+    flex: 1;
+    min-width: 0;
+  }
 }
 
 .top-control-bar--stacked {
