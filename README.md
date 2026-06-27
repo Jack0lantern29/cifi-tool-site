@@ -11,7 +11,7 @@ This site is designed to run as a simple static website hosted including:
 
 - Browser-based optimizer
 - Farm mission selection
-- Campaign targeting and focus
+- Campaign targeting with concurrent farm mission selection
 - Resource priority controls
 - Ouroboros-aware UI and mission visibility
 - Local save/load using browser storage

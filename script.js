@@ -123,13 +123,15 @@ const tabButtons = document.querySelectorAll('.tab-button');
 const tabPanels = document.querySelectorAll('.tab-panel');
 const jumpButtons = document.querySelectorAll('.jump-button');
 const ouroToggle = document.getElementById('ouroToggle');
-const ouroOnlyBlocks = document.querySelectorAll('.ouro-only');
 const modeSelect = document.getElementById('modeSelect');
+const campaignEnabledCheckbox = document.getElementById('campaignEnabled');
 const campaignTargetSelect = document.getElementById('campaignTarget');
 const runOptimizerBtn = document.getElementById('runOptimizerBtn');
 const resetInputsBtn = document.getElementById('resetInputsBtn');
 const missionSelectAllBtn = document.getElementById('missionSelectAllBtn');
 const missionClearAllBtn = document.getElementById('missionClearAllBtn');
+const campaignFarmSelectAllBtn = document.getElementById('campaignFarmSelectAllBtn');
+const campaignFarmClearAllBtn = document.getElementById('campaignFarmClearAllBtn');
 
 const ALL_FARM_MISSIONS = MISSION_DATA
   .filter(m => !isCampaignName_(m.name))
@@ -139,6 +141,7 @@ const ALL_CAMPAIGN_MISSIONS = MISSION_DATA
   .map(m => m.name);
 
 let missionSelectionState = {};
+let campaignFarmSelectionState = {};
 
 tabButtons.forEach((button) => {
   button.addEventListener('click', () => {
@@ -205,7 +208,8 @@ function collectFormState_() {
   return {
     version: CURRENT_VERSION,
     values,
-    missionSelectionState: { ...missionSelectionState }
+    missionSelectionState: { ...missionSelectionState },
+    campaignFarmSelectionState: { ...campaignFarmSelectionState }
   };
 }
 
@@ -238,6 +242,7 @@ function applyFormState_(state) {
   });
 
   missionSelectionState = { ...(state.missionSelectionState || {}) };
+  campaignFarmSelectionState = { ...(state.campaignFarmSelectionState || {}) };
   syncOuroVisibility();
 
   if (values.modeSelect && Array.from(modeSelect.options).some(opt => opt.value === values.modeSelect)) {
@@ -249,6 +254,7 @@ function applyFormState_(state) {
   }
 
   renderFarmMissionSelection_();
+  renderCampaignFarmMissionSelection_();
 }
 
 function applyZeroDefaults_() {
@@ -265,8 +271,10 @@ function applyZeroDefaults_() {
   });
 
   missionSelectionState = {};
+  campaignFarmSelectionState = {};
   syncOuroVisibility();
   renderFarmMissionSelection_();
+  renderCampaignFarmMissionSelection_();
 }
 
 function restoreSavedState_() {
@@ -293,6 +301,7 @@ function clearOutput_() {
 function resetToDefaults_() {
   if (!DEFAULT_FORM_STATE) return;
   missionSelectionState = {};
+  campaignFarmSelectionState = {};
   applyFormState_(DEFAULT_FORM_STATE);
   try {
     window.localStorage.removeItem(STORAGE_KEY);
@@ -330,22 +339,37 @@ function initPersistence_() {
 }
 
 function syncOuroVisibility() {
-  const show = ouroToggle.checked;
-  ouroOnlyBlocks.forEach((block) => {
-    block.classList.toggle('hidden', !show);
-  });
-
+  syncVisibilityRules_();
   renderModeOptions_();
   renderCampaignTargets_();
   renderFarmMissionSelection_();
+  syncCampaignVisibility_();
+}
+
+function syncCampaignVisibility_() {
+  syncVisibilityRules_();
+  renderCampaignFarmMissionSelection_();
+}
+
+function syncVisibilityRules_() {
+  const ouroUnlocked = ouroToggle.checked;
+  const campaignEnabled = campaignEnabledCheckbox.checked;
+  document.querySelectorAll('.ouro-only, .campaign-enabled-only').forEach((block) => {
+    const requiresOuro = block.classList.contains('ouro-only');
+    const requiresCampaign = block.classList.contains('campaign-enabled-only');
+    const shouldShow = (!requiresOuro || ouroUnlocked) && (!requiresCampaign || campaignEnabled);
+    block.classList.toggle('hidden', !shouldShow);
+  });
 }
 
 ouroToggle.addEventListener('change', () => { syncOuroVisibility(); saveState_(); });
+campaignEnabledCheckbox.addEventListener('change', () => { syncCampaignVisibility_(); saveState_(); });
 missionSelectAllBtn.addEventListener('click', () => {
   getVisibleFarmMissionNames_(ouroToggle.checked).forEach(name => {
     missionSelectionState[name] = true;
   });
   renderFarmMissionSelection_();
+  renderCampaignFarmMissionSelection_();
   saveState_();
 });
 missionClearAllBtn.addEventListener('click', () => {
@@ -353,6 +377,21 @@ missionClearAllBtn.addEventListener('click', () => {
     missionSelectionState[name] = false;
   });
   renderFarmMissionSelection_();
+  renderCampaignFarmMissionSelection_();
+  saveState_();
+});
+campaignFarmSelectAllBtn.addEventListener('click', () => {
+  getVisibleCampaignFarmMissionNames_(ouroToggle.checked).forEach(name => {
+    campaignFarmSelectionState[name] = true;
+  });
+  renderCampaignFarmMissionSelection_();
+  saveState_();
+});
+campaignFarmClearAllBtn.addEventListener('click', () => {
+  getVisibleCampaignFarmMissionNames_(ouroToggle.checked).forEach(name => {
+    campaignFarmSelectionState[name] = false;
+  });
+  renderCampaignFarmMissionSelection_();
   saveState_();
 });
 syncOuroVisibility();
@@ -416,12 +455,15 @@ function renderFarmMissionSelection_() {
             <span class="mission-tier-count">${countLabel}</span>
           </div>
           <div class="mission-tile-grid">
-            ${names.map(name => `
-              <label class="mission-tile ${missionSelectionState[name] ? 'is-checked' : ''}">
-                <input class="mission-tile-input" type="checkbox" value="${name}" ${missionSelectionState[name] ? 'checked' : ''} />
-                <span>${name}</span>
-              </label>
-            `).join('')}
+            ${names.map(name => {
+              const selected = missionSelectionState[name] !== false;
+              return `
+                <label class="mission-tile ${selected ? 'is-checked' : ''}">
+                  <input class="mission-tile-input" type="checkbox" value="${name}" ${selected ? 'checked' : ''} />
+                  <span>${name}</span>
+                </label>
+              `;
+            }).join('')}
           </div>
         </div>
       `;
@@ -434,6 +476,7 @@ function renderFarmMissionSelection_() {
     input.addEventListener('change', () => {
       missionSelectionState[input.value] = input.checked;
       renderFarmMissionSelection_();
+      renderCampaignFarmMissionSelection_();
       saveState_();
     });
   });
@@ -443,6 +486,77 @@ function getSelectedFarmMissionNames_() {
   const selected = new Set();
   getVisibleFarmMissionNames_(ouroToggle.checked).forEach(name => {
     if (missionSelectionState[name] !== false) selected.add(name);
+  });
+  return selected;
+}
+
+function getVisibleCampaignFarmMissionNames_(ouroUnlocked) {
+  return getVisibleFarmMissionNames_(ouroUnlocked).filter(name => missionSelectionState[name] !== false);
+}
+
+function renderCampaignFarmMissionSelection_() {
+  const container = document.getElementById('campaignFarmMissionSelectionGrid');
+  if (!container) return;
+
+  if (!campaignEnabledCheckbox.checked) {
+    container.innerHTML = '';
+    return;
+  }
+
+  const visible = getVisibleCampaignFarmMissionNames_(ouroToggle.checked);
+  visible.forEach(name => {
+    if (!(name in campaignFarmSelectionState)) campaignFarmSelectionState[name] = true;
+  });
+
+  const tiers = { F1: [], F2: [], F3: [], F4: [] };
+  visible.forEach(name => {
+    const tier = String(name).split('-')[0];
+    if (tiers[tier]) tiers[tier].push(name);
+  });
+
+  const tierMarkup = Object.entries(tiers)
+    .filter(([, names]) => names.length > 0)
+    .map(([tier, names]) => {
+      const selectedCount = names.reduce((sum, name) => sum + (campaignFarmSelectionState[name] !== false ? 1 : 0), 0);
+      const countLabel = `${selectedCount} selected`;
+
+      return `
+        <div class="mission-tier-card">
+          <div class="mission-tier-header">
+            <h3>${tier}</h3>
+            <span class="mission-tier-count">${countLabel}</span>
+          </div>
+          <div class="mission-tile-grid">
+            ${names.map(name => {
+              const selected = campaignFarmSelectionState[name] !== false;
+              return `
+                <label class="mission-tile ${selected ? 'is-checked' : ''}">
+                  <input class="mission-tile-input" type="checkbox" value="${name}" ${selected ? 'checked' : ''} />
+                  <span>${name}</span>
+                </label>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    })
+    .join('');
+
+  container.innerHTML = tierMarkup || '<div class="mission-tier-empty">No selected farm missions are currently available.</div>';
+
+  container.querySelectorAll('.mission-tile-input').forEach(input => {
+    input.addEventListener('change', () => {
+      campaignFarmSelectionState[input.value] = input.checked;
+      renderCampaignFarmMissionSelection_();
+      saveState_();
+    });
+  });
+}
+
+function getSelectedCampaignFarmMissionNames_() {
+  const selected = new Set();
+  getVisibleCampaignFarmMissionNames_(ouroToggle.checked).forEach(name => {
+    if (campaignFarmSelectionState[name] !== false) selected.add(name);
   });
   return selected;
 }
@@ -511,12 +625,12 @@ function getUiState_() {
     workerPowers,
     weights,
     selectedFarmMissions: getSelectedFarmMissionNames_(),
+    selectedCampaignFarmMissions: getSelectedCampaignFarmMissionNames_(),
     modeRaw: modeSelect.value,
     modeNorm: normalizeMode_(modeSelect.value),
     fragmentsPerCompletion: baseFragments,
-    campaignEnabled: document.getElementById('campaignEnabled').checked,
-    campaignTargetName: document.getElementById('campaignTarget').value,
-    campaignFocus: document.getElementById('campaignFocus').value,
+    campaignEnabled: campaignEnabledCheckbox.checked,
+    campaignTargetName: campaignTargetSelect.value,
     relic11Level: parseInt(document.getElementById('relic11').value || '0', 10) || 0,
     globalSpeedMult: getGlobalSpeedMultiplierFromUi_(),
     ts07Enabled: ouroToggle.checked ? document.getElementById('ts07').checked : false
@@ -557,10 +671,15 @@ function buildMissionPool_(ui) {
       return;
     }
 
+    if (!isCampaignRow && ui.campaignEnabled && ui.selectedCampaignFarmMissions && !ui.selectedCampaignFarmMissions.has(row.name)) {
+      return;
+    }
+
     const baseCap = isCampaignRow
       ? (CAMPAIGN_BASE_CAPS[row.name] ?? row.cap)
       : row.cap;
 
+    // Campaign mode filters farms to the selected concurrent set, then sends leftover personnel to campaign.
     const effectiveCap = isCampaignRow
       ? getEffectiveCampaignCap_(row.name, ui)
       : row.cap;
@@ -614,7 +733,8 @@ function runOptimizerWeb() {
 
 function solveOptimizer_(ui, missions, campaignMission) {
   const modeNorm = ui.modeNorm;
-  const campaignBaseWeight = getCampaignBaseWeight_(ui.campaignFocus);
+  const campaignBaseWeight = 0;
+  const allocateCampaignDuringFarmOptimization = false;
 
   const isAcademyMode   = (modeNorm === "academy points");
   const isMaxCompMode   = (modeNorm === "max completions");
@@ -884,6 +1004,31 @@ function solveOptimizer_(ui, missions, campaignMission) {
     workers[bestType].count--;
   }
 
+  function assignRemainingWorkersToCampaign_() {
+    if (!ui.campaignEnabled || !campaignMission) return;
+
+    while (campaignMission.assignedUnits < campaignMission.cap) {
+      let bestType = null;
+      let bestRaw = 0;
+
+      TYPE_ORDER.forEach(type => {
+        const worker = workers[type];
+        if (!worker || worker.count <= 0 || worker.power <= 0) return;
+        const raw = getCampaignAddRaw(type);
+        if (raw > bestRaw) {
+          bestRaw = raw;
+          bestType = type;
+        }
+      });
+
+      if (!bestType || bestRaw <= 0) break;
+
+      addAssignment(campaignMission.name, bestType, 1);
+      addWorkerToMission(campaignMission, bestType);
+      workers[bestType].count--;
+    }
+  }
+
   function getCampaignRemoveLossRaw(type) {
     if (!ui.campaignEnabled || !campaignMission) return 0;
     const cnt = missionWorkerCounts[campaignMission.name][type] || 0;
@@ -1057,7 +1202,7 @@ function solveOptimizer_(ui, missions, campaignMission) {
 
       const effW = effectiveCampaignWeight();
       const eta = currentCampaignETA();
-      const campaignUrgent = ui.campaignEnabled && campaignMission && (!isFinite(eta) || effW >= 0.50);
+      const campaignUrgent = allocateCampaignDuringFarmOptimization && ui.campaignEnabled && campaignMission && (!isFinite(eta) || effW >= 0.50);
 
       for (let ti = 0; ti < TYPE_ORDER.length; ti++) {
         const type = TYPE_ORDER[ti];
@@ -1082,7 +1227,7 @@ function solveOptimizer_(ui, missions, campaignMission) {
         }
       }
 
-      if (ui.campaignEnabled && campaignMission) {
+      if (allocateCampaignDuringFarmOptimization && ui.campaignEnabled && campaignMission) {
         for (let ti = 0; ti < TYPE_ORDER.length; ti++) {
           const type = TYPE_ORDER[ti];
           const worker = workers[type];
@@ -1742,7 +1887,6 @@ function solveOptimizer_(ui, missions, campaignMission) {
     restoreState_(bestSnap);
   }
 
-  seedCampaignWithOneWorker_();
   const emptySnap = snapshotState_();
   const runResults = [];
   let bestSoFar = null;
@@ -1754,12 +1898,7 @@ function solveOptimizer_(ui, missions, campaignMission) {
     const randomize = runIdx > 0;
     executeGreedyAllocation_(randomize);
 
-    if (ui.campaignEnabled && campaignMission && !isFragResMode) {
-      localImproveCampaignVsFarm_();
-    }
-    if (!ui.campaignEnabled) {
-      polishFarmSolution_();
-    }
+    polishFarmSolution_();
 
     const result = {
       summary: getSolutionSummary_(),
@@ -1815,15 +1954,14 @@ function solveOptimizer_(ui, missions, campaignMission) {
 
   floorRebalance_();
 
-  if (!ui.campaignEnabled) {
-    polishByWorkerType_();
-    polishFarmSolution_();
-  }
+  polishByWorkerType_();
+  polishFarmSolution_();
 
   if (!isSummaryBetter_(getSolutionSummary_(), preFloorSummary)) {
     restoreState_(preFloorSnap);
   }
   simulatedAnnealingPolish_();
+  assignRemainingWorkersToCampaign_();
   const assignments = getAssignmentsArray_().sort((a, b) => {
     const nameComp = a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
     if (nameComp !== 0) return nameComp;

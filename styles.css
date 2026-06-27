@@ -623,6 +623,20 @@ select:focus {
   padding: 18px 18px 0;
 }
 
+.campaign-farm-selection {
+  border-top: 1px solid rgba(255,255,255,0.04);
+}
+
+.campaign-farm-selection .mission-selection-toolbar {
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.campaign-selection-title {
+  margin-bottom: 0;
+}
+
 .mission-tier-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

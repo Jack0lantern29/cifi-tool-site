@@ -130,10 +130,10 @@
       <section id="campaign" class="content-card">
         <div class="card-header">
           <h2>Campaign</h2>
-          <p>Enable to optimize both campaign and farm missions based on preferred focus.</p>
+          <p>Enable to optimize selected farm missions, then assign remaining personnel into the campaign target.</p>
         </div>
 
-        <div class="grid grid-4">
+        <div class="grid grid-3">
           <div class="field-card field-card--checkbox">
             <label class="field-label">Campaign Enabled?</label>
             <label class="checkbox-row">
@@ -142,7 +142,7 @@
             </label>
           </div>
 
-          <div class="field-card">
+          <div class="field-card campaign-enabled-only hidden">
             <label class="field-label" for="campaignTarget">Campaign Target</label>
             <select id="campaignTarget">
               <option>C1-1</option>
@@ -196,20 +196,23 @@
             </select>
           </div>
 
-          <div class="field-card">
-            <label class="field-label" for="campaignFocus">Campaign Focus</label>
-            <select id="campaignFocus">
-              <option>Prioritize Campaign</option>
-              <option>Even Consideration</option>
-              <option selected>Prioritize Farms</option>
-            </select>
-          </div>
-
-          <div class="field-card ouro-only">
+          <div class="field-card ouro-only campaign-enabled-only hidden">
             <label class="field-label" for="relic11">T1 Relic 11 Level</label>
             <input id="relic11" type="number" step="1" min="0" value="0" />
             <p class="tiny-note">Adjusts campaign mission caps.</p>
           </div>
+        </div>
+
+        <div class="campaign-farm-selection campaign-enabled-only hidden">
+          <div class="mission-selection-toolbar">
+            <div class="field-label compact campaign-selection-title">Concurrent Farm Missions</div>
+            <div class="action-group action-group--inline">
+              <button class="action-button" id="campaignFarmSelectAllBtn" type="button">Select All</button>
+              <button class="action-button" id="campaignFarmClearAllBtn" type="button">Clear All</button>
+            </div>
+          </div>
+
+          <div class="mission-tier-grid" id="campaignFarmMissionSelectionGrid"></div>
         </div>
       </section>
 
@@ -282,17 +285,41 @@
 
           <div class="field-card">
             <label class="field-label" for="research58">Research 58 Level</label>
-            <input id="research58" type="number" step="1" min="0" value="0" />
+            <select id="research58">
+              <option selected>0</option>
+              <option>1</option>
+              <option>2</option>
+              <option>3</option>
+              <option>4</option>
+              <option>5</option>
+              <option>6</option>
+            </select>
           </div>
 
           <div class="field-card">
             <label class="field-label" for="research70">Research 70 Level</label>
-            <input id="research70" type="number" step="1" min="0" value="0" />
+            <select id="research70">
+              <option selected>0</option>
+              <option>1</option>
+              <option>2</option>
+              <option>3</option>
+              <option>4</option>
+              <option>5</option>
+              <option>6</option>
+            </select>
           </div>
 
           <div class="field-card">
             <label class="field-label" for="research80">Research 80 Level</label>
-            <input id="research80" type="number" step="1" min="0" value="0" />
+            <select id="research80">
+              <option selected>0</option>
+              <option>1</option>
+              <option>2</option>
+              <option>3</option>
+              <option>4</option>
+              <option>5</option>
+              <option>6</option>
+            </select>
           </div>
 
           <div class="field-card ouro-only">
@@ -390,6 +417,21 @@
         </div>
 
         <div class="changelog-list">
+          <div class="changelog-item">
+            <span class="tag">v2.3 Campaign and Modifier Update</span>
+            <p>Added campaign-only concurrent farm mission selection, replacing the previous campaign focus setting.</p>
+            <p>Selected campaign farms are optimized using the chosen mode, with remaining personnel sent to the campaign target.</p>
+            <p>Campaign target and T1 Relic 11 controls now only appear when campaign optimization is enabled, with Relic 11 still requiring Ouroboros.</p>
+            <p>Changed Research 58, Research 70, and Research 80 modifiers into mobile-friendly 0-6 dropdowns.</p>
+          </div>
+          <div class="changelog-item">
+            <span class="tag">v2.2 Mobile and TS7 Fix</span>
+            <p>Added more mobile UI functionality and fixed TS7 displaying double output of relic fragments.</p>
+          </div>
+          <div class="changelog-item">
+            <span class="tag">v2.1 Allocation Fix</span>
+            <p>Fixed the algorithm over-allocating higher tier workers to missions that could have been completed by lower tier workers, improving missions/hour and resources/hour.</p>
+          </div>
           <div class="changelog-item">
             <span class="tag">v2.0 Web Launch</span>
             <p>Installed the previous spreadsheet optimizer into the website format.</p>
