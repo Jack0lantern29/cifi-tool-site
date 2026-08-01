@@ -93,7 +93,6 @@ const STORAGE_KEY = "cifi-farm-mission-optimizer-state-v1";
 const MIN_DURATION_MINS = 2.0 / 60.0;
 const EPS = 1e-9;
 const NEAR_BEST_POOL_PCT = 0.05;
-const LOCAL_IMPROVE_MAX_ITERS = 250;
 const MULTISTART_MIN_RUNS = 3;
 const MULTISTART_MAX_RUNS = 7;
 const MULTISTART_STALE_LIMIT = 2;
@@ -407,11 +406,6 @@ function scrollToOutput_() {
   });
 }
 
-function clamp_(x, lo, hi) {
-  return Math.max(lo, Math.min(hi, x));
-}
-
-
 function typeKey_(type) {
   return String(type || "")
     .toLowerCase()
@@ -565,18 +559,6 @@ function isCampaignName_(name) {
   return /^C\d+-\d+$/i.test(String(name || "").trim());
 }
 
-function getCampaignBaseWeight_(focus) {
-  switch (String(focus || "").trim()) {
-    case "Prioritize Campaign":
-      return 0.50;
-    case "Prioritize Farms":
-      return 0.20;
-    case "Even Consideration":
-    default:
-      return 0.35;
-  }
-}
-
 function getGlobalSpeedMultiplierFromUi_() {
   const engineeringBadge = document.getElementById('engineeringBadge').checked;
   const swarmLevel = parseFloat(document.getElementById('swarmLevel').value) || 0;
@@ -667,6 +649,12 @@ function buildMissionPool_(ui) {
       return;
     }
 
+    // Farm optimisation is intentionally isolated from campaign missions. Only the
+    // selected target is retained so it can receive the final farm remainder.
+    if (isCampaignRow && (!ui.campaignEnabled || row.name !== ui.campaignTargetName)) {
+      return;
+    }
+
     if (!isCampaignRow && ui.selectedFarmMissions && !ui.selectedFarmMissions.has(row.name)) {
       return;
     }
@@ -733,8 +721,6 @@ function runOptimizerWeb() {
 
 function solveOptimizer_(ui, missions, campaignMission) {
   const modeNorm = ui.modeNorm;
-  const campaignBaseWeight = 0;
-  const allocateCampaignDuringFarmOptimization = false;
 
   const isAcademyMode   = (modeNorm === "academy points");
   const isMaxCompMode   = (modeNorm === "max completions");
@@ -779,19 +765,6 @@ function solveOptimizer_(ui, missions, campaignMission) {
   function currentCampaignETA() {
     if (!campaignMission) return Infinity;
     return campaignETAHours(campaignMission, campaignMission.currentPower);
-  }
-
-  function urgencyMultiplier(etaHours) {
-    if (!ui.campaignEnabled || !campaignMission) return 1.0;
-    if (!isFinite(etaHours)) return 1.50;
-    const x = Math.log10(1 + Math.max(0, etaHours));
-    return clamp_(1.00 + 0.15 * x, 1.00, 1.50);
-  }
-
-  function effectiveCampaignWeight() {
-    if (!ui.campaignEnabled || !campaignMission) return 0.0;
-    const eta = currentCampaignETA();
-    return clamp_(campaignBaseWeight * urgencyMultiplier(eta), 0.05, 0.95);
   }
 
   function assignmentKey_(missionName, workerType) {
@@ -967,82 +940,24 @@ function solveOptimizer_(ui, missions, campaignMission) {
     return { deltaRunsLoss, baseLossRaw, fragmentLossRaw, resourceLossRaw };
   }
 
-  function getCampaignAddRaw(type) {
-    if (!ui.campaignEnabled || !campaignMission) return 0;
-    if (campaignMission.assignedUnits >= campaignMission.cap) return 0;
-    const power = workerPowers[type];
-    if (!power || power <= 0) return 0;
-
-    const oldETA = campaignETAHours(campaignMission, campaignMission.currentPower);
-    const newETA = campaignETAHours(campaignMission, campaignMission.currentPower + power);
-
-    if (!isFinite(newETA) || newETA <= 0) return 0;
-    if (!isFinite(oldETA)) return 1 / newETA;
-    return Math.max(0, (oldETA - newETA) / Math.max(oldETA, EPS));
-  }
-
-  function seedCampaignWithOneWorker_() {
-    if (!ui.campaignEnabled || !campaignMission) return;
-    if (campaignMission.currentPower > 0) return;
-    if (campaignMission.assignedUnits >= campaignMission.cap) return;
-
-    let bestType = null;
-    let bestRaw = 0;
-    TYPE_ORDER.forEach(type => {
-      const worker = workers[type];
-      if (!worker || worker.count <= 0 || worker.power <= 0) return;
-      const raw = getCampaignAddRaw(type);
-      if (raw > bestRaw) {
-        bestRaw = raw;
-        bestType = type;
-      }
-    });
-
-    if (!bestType) return;
-    addAssignment(campaignMission.name, bestType, 1);
-    addWorkerToMission(campaignMission, bestType);
-    workers[bestType].count--;
-  }
-
   function assignRemainingWorkersToCampaign_() {
     if (!ui.campaignEnabled || !campaignMission) return;
 
-    while (campaignMission.assignedUnits < campaignMission.cap) {
-      let bestType = null;
-      let bestRaw = 0;
+    // TYPE_ORDER is cheapest-to-most-expensive. Campaign receives only the
+    // personnel left after the farm solution has been completely finalised.
+    for (let ti = 0; ti < TYPE_ORDER.length; ti++) {
+      const type = TYPE_ORDER[ti];
+      const worker = workers[type];
+      if (!worker || worker.count <= 0 || worker.power <= 0) continue;
 
-      TYPE_ORDER.forEach(type => {
-        const worker = workers[type];
-        if (!worker || worker.count <= 0 || worker.power <= 0) return;
-        const raw = getCampaignAddRaw(type);
-        if (raw > bestRaw) {
-          bestRaw = raw;
-          bestType = type;
-        }
-      });
+      while (worker.count > 0 && campaignMission.assignedUnits < campaignMission.cap) {
+        addAssignment(campaignMission.name, type, 1);
+        addWorkerToMission(campaignMission, type);
+        worker.count--;
+      }
 
-      if (!bestType || bestRaw <= 0) break;
-
-      addAssignment(campaignMission.name, bestType, 1);
-      addWorkerToMission(campaignMission, bestType);
-      workers[bestType].count--;
+      if (campaignMission.assignedUnits >= campaignMission.cap) break;
     }
-  }
-
-  function getCampaignRemoveLossRaw(type) {
-    if (!ui.campaignEnabled || !campaignMission) return 0;
-    const cnt = missionWorkerCounts[campaignMission.name][type] || 0;
-    if (cnt <= 0) return 0;
-    const power = workerPowers[type];
-    if (!power || power <= 0) return 0;
-    const oldETA = campaignETAHours(campaignMission, campaignMission.currentPower);
-    if (!isFinite(oldETA) || oldETA <= 0) return 0;
-
-    const remainingPower = campaignMission.currentPower - power;
-    if (remainingPower <= 0) return 1 / oldETA;
-    const newETA = campaignETAHours(campaignMission, remainingPower);
-    if (!isFinite(newETA)) return 1 / oldETA;
-    return Math.max(0, (newETA - oldETA) / Math.max(oldETA, EPS));
   }
 
   function getSolutionSummary_() {
@@ -1198,11 +1113,6 @@ function solveOptimizer_(ui, missions, campaignMission) {
     while (true) {
       let candidates = [];
       let maxBaseRaw = 0;
-      let maxCampRaw = 0;
-
-      const effW = effectiveCampaignWeight();
-      const eta = currentCampaignETA();
-      const campaignUrgent = allocateCampaignDuringFarmOptimization && ui.campaignEnabled && campaignMission && (!isFinite(eta) || effW >= 0.50);
 
       for (let ti = 0; ti < TYPE_ORDER.length; ti++) {
         const type = TYPE_ORDER[ti];
@@ -1215,36 +1125,12 @@ function solveOptimizer_(ui, missions, campaignMission) {
           if (!farm) continue;
           maxBaseRaw = Math.max(maxBaseRaw, farm.baseRaw);
           candidates.push({
-            kind: "farm",
             mission, type,
             power: worker.power,
             deltaRuns: farm.deltaRuns,
             baseRaw: farm.baseRaw,
             fragmentRaw: farm.fragmentRaw || 0,
-            resourceRaw: farm.resourceRaw || 0,
-            campRaw: 0
-          });
-        }
-      }
-
-      if (allocateCampaignDuringFarmOptimization && ui.campaignEnabled && campaignMission) {
-        for (let ti = 0; ti < TYPE_ORDER.length; ti++) {
-          const type = TYPE_ORDER[ti];
-          const worker = workers[type];
-          if (!worker || worker.count <= 0 || worker.power <= 0) continue;
-          const campRaw = getCampaignAddRaw(type);
-          if (campRaw <= EPS) continue;
-          maxCampRaw = Math.max(maxCampRaw, campRaw);
-          candidates.push({
-            kind: "campaign",
-            mission: campaignMission,
-            type,
-            power: worker.power,
-            deltaRuns: 0,
-            baseRaw: 0,
-            fragmentRaw: 0,
-            resourceRaw: 0,
-            campRaw
+            resourceRaw: farm.resourceRaw || 0
           });
         }
       }
@@ -1252,12 +1138,10 @@ function solveOptimizer_(ui, missions, campaignMission) {
       if (candidates.length === 0) break;
 
       const invMaxBase = maxBaseRaw > EPS ? 1 / maxBaseRaw : 0;
-      const invMaxCamp = maxCampRaw > EPS ? 1 / maxCampRaw : 0;
 
       candidates.forEach(c => {
         c.baseNorm = c.baseRaw * invMaxBase;
-        c.campNorm = c.campRaw * invMaxCamp;
-        c.finalScore = (1 - effW) * c.baseNorm + effW * c.campNorm;
+        c.finalScore = c.baseNorm;
       });
 
       candidates.sort((a, b) => b.finalScore - a.finalScore);
@@ -1270,13 +1154,8 @@ function solveOptimizer_(ui, missions, campaignMission) {
       pool.sort((a, b) => {
         const df = b.finalScore - a.finalScore;
         if (Math.abs(df) > 1e-12) return df;
-        if (campaignUrgent) {
-          const dc = b.campNorm - a.campNorm;
-          if (Math.abs(dc) > 1e-12) return dc;
-        } else {
-          const db = b.baseNorm - a.baseNorm;
-          if (Math.abs(db) > 1e-12) return db;
-        }
+        const db = b.baseNorm - a.baseNorm;
+        if (Math.abs(db) > 1e-12) return db;
 
         if (!isFragmentsMode && !isFragResMode) {
           const de = (b.finalScore / Math.max(b.power, EPS)) - (a.finalScore / Math.max(a.power, EPS));
@@ -1305,10 +1184,7 @@ function solveOptimizer_(ui, missions, campaignMission) {
       addAssignment(mission.name, type, 1);
       addWorkerToMission(mission, type);
       worker.count--;
-
-      if (pick.kind === "farm") {
-        addFarmContributionToTotals(mission, pick.deltaRuns);
-      }
+      addFarmContributionToTotals(mission, pick.deltaRuns);
     }
   }
 
@@ -1621,98 +1497,6 @@ function solveOptimizer_(ui, missions, campaignMission) {
     });
   }
 
-  function localImproveCampaignVsFarm_() {
-    for (let iter = 0; iter < LOCAL_IMPROVE_MAX_ITERS; iter++) {
-      const effW = effectiveCampaignWeight();
-      let maxBaseRaw = 0;
-      let maxCampRaw = 0;
-      let bestSecondary = -Infinity;
-
-      for (let ti = 0; ti < TYPE_ORDER.length; ti++) {
-        const type = TYPE_ORDER[ti];
-        const campAdd = getCampaignAddRaw(type);
-        if (campAdd > maxCampRaw) maxCampRaw = campAdd;
-        const campLoss = getCampaignRemoveLossRaw(type);
-        if (campLoss > maxCampRaw) maxCampRaw = campLoss;
-
-        for (let mi = 0; mi < missions.length; mi++) {
-          const mission = missions[mi];
-          if (mission.isCampaign) continue;
-          const add = getFarmAddMetrics(mission, type);
-          if (add && add.baseRaw > maxBaseRaw) maxBaseRaw = add.baseRaw;
-          const rem = getFarmRemoveMetrics(mission, type);
-          if (rem && rem.baseLossRaw > maxBaseRaw) maxBaseRaw = rem.baseLossRaw;
-        }
-      }
-
-      const baseScale = maxBaseRaw > EPS ? maxBaseRaw : 1;
-      const campScale = maxCampRaw > EPS ? maxCampRaw : 1;
-      let bestMove = null;
-      let bestDelta = 0;
-
-      for (let ti = 0; ti < TYPE_ORDER.length; ti++) {
-        const type = TYPE_ORDER[ti];
-        const cntOnCampaign = missionWorkerCounts[campaignMission.name][type] || 0;
-        if (cntOnCampaign <= 0) continue;
-        const campLoss = getCampaignRemoveLossRaw(type);
-        if (campLoss <= EPS) continue;
-
-        for (let mi = 0; mi < missions.length; mi++) {
-          const mission = missions[mi];
-          if (mission.isCampaign) continue;
-          const farmAdd = getFarmAddMetrics(mission, type);
-          if (!farmAdd) continue;
-          const deltaNorm = (1 - effW) * (farmAdd.baseRaw / baseScale) - effW * (campLoss / campScale);
-          const secondary = isFragResMode ? (farmAdd.resourceRaw || 0) : 0;
-          if (deltaNorm > bestDelta + EPS || (isFragResMode && Math.abs(deltaNorm - bestDelta) <= EPS && secondary > bestSecondary + EPS)) {
-            bestDelta = deltaNorm;
-            bestSecondary = secondary;
-            bestMove = { dir: "campaign_to_farm", type, mission, deltaRuns: farmAdd.deltaRuns };
-          }
-        }
-      }
-
-      for (let mi = 0; mi < missions.length; mi++) {
-        const mission = missions[mi];
-        if (mission.isCampaign) continue;
-        for (let ti = 0; ti < TYPE_ORDER.length; ti++) {
-          const type = TYPE_ORDER[ti];
-          const cntOnMission = missionWorkerCounts[mission.name][type] || 0;
-          if (cntOnMission <= 0) continue;
-          const farmLoss = getFarmRemoveMetrics(mission, type);
-          if (!farmLoss) continue;
-          const campGain = getCampaignAddRaw(type);
-          if (campGain <= EPS) continue;
-          const deltaNorm = effW * (campGain / campScale) - (1 - effW) * (farmLoss.baseLossRaw / baseScale);
-          const secondary = isFragResMode ? -(farmLoss.resourceLossRaw || 0) : 0;
-          if (deltaNorm > bestDelta + EPS || (isFragResMode && Math.abs(deltaNorm - bestDelta) <= EPS && secondary > bestSecondary + EPS)) {
-            bestDelta = deltaNorm;
-            bestSecondary = secondary;
-            bestMove = { dir: "farm_to_campaign", type, mission, deltaRunsLoss: farmLoss.deltaRunsLoss };
-          }
-        }
-      }
-
-      if (!bestMove || bestDelta <= EPS) break;
-      if (bestMove.dir === "campaign_to_farm") {
-        removeWorkerFromMission(campaignMission, bestMove.type);
-        addAssignment(campaignMission.name, bestMove.type, -1);
-        workers[bestMove.type].count++;
-        addWorkerToMission(bestMove.mission, bestMove.type);
-        addAssignment(bestMove.mission.name, bestMove.type, 1);
-        workers[bestMove.type].count--;
-        addFarmContributionToTotals(bestMove.mission, bestMove.deltaRuns);
-      } else if (bestMove.dir === "farm_to_campaign") {
-        removeWorkerFromMission(bestMove.mission, bestMove.type);
-        addAssignment(bestMove.mission.name, bestMove.type, -1);
-        removeFarmContributionFromTotals(bestMove.mission, bestMove.deltaRunsLoss);
-        workers[bestMove.type].count++;
-        addWorkerToMission(campaignMission, bestMove.type);
-        addAssignment(campaignMission.name, bestMove.type, 1);
-        workers[bestMove.type].count--;
-      }
-    }
-  }
   function simulatedAnnealingPolish_() {
     const farmMissions = missions.filter(m => !m.isCampaign);
     if (farmMissions.length < 2) return;
@@ -1961,6 +1745,9 @@ function solveOptimizer_(ui, missions, campaignMission) {
     restoreState_(preFloorSnap);
   }
   simulatedAnnealingPolish_();
+
+  // Hard phase boundary: campaign cannot influence or take workers back from
+  // the final selected-farm solution.
   assignRemainingWorkersToCampaign_();
   const assignments = getAssignmentsArray_().sort((a, b) => {
     const nameComp = a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
