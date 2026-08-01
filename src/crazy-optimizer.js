@@ -91,13 +91,52 @@ function effectiveCampaignCap_(input) {
   return Math.round(base * relicMultiplier);
 }
 
+function removeRedundantCappedAssignments_(context, farmAssignments) {
+  // Assignment variables have no objective cost after a mission reaches the
+  // two-second floor, so an otherwise optimal MILP solution may contain spare
+  // workers. Strip those workers without changing any farm output.
+  const counts = new Map();
+  farmAssignments.forEach(({ name, type, count }) => {
+    if (count <= 0) return;
+    const key = `${name}|${type}`;
+    counts.set(key, (counts.get(key) || 0) + count);
+  });
+
+  context.missions.forEach(mission => {
+    let power = context.workers.reduce((sum, worker) =>
+      sum + (counts.get(`${mission.name}|${worker.type}`) || 0) * worker.power, 0);
+    const originalRuns = Math.min(MAX_RUNS_PER_HOUR, mission.alpha * power);
+    if (originalRuns < MAX_RUNS_PER_HOUR) return;
+    const requiredPower = MAX_RUNS_PER_HOUR / mission.alpha;
+
+    for (let typeIndex = TYPE_ORDER.length - 1; typeIndex >= 0; typeIndex--) {
+      const type = TYPE_ORDER[typeIndex];
+      const workerPower = context.input.workers[type].power;
+      const key = `${mission.name}|${type}`;
+      const existing = counts.get(key) || 0;
+      if (existing <= 0 || workerPower <= 0) continue;
+      const removable = Math.min(existing, Math.max(0, Math.floor((power - requiredPower) / workerPower)));
+      const count = existing - removable;
+      power -= removable * workerPower;
+      if (count > 0) counts.set(key, count);
+      else counts.delete(key);
+    }
+  });
+
+  return [...counts].map(([key, count]) => {
+    const separator = key.lastIndexOf("|");
+    return { name: key.slice(0, separator), type: key.slice(separator + 1), count };
+  });
+}
+
 function finalizeResult_(context, farmAssignments, metadata) {
   const { input } = context;
-  const { totals, summary } = evaluateFarmAssignments_(context, farmAssignments);
+  const finalFarmAssignments = removeRedundantCappedAssignments_(context, farmAssignments);
+  const { totals, summary } = evaluateFarmAssignments_(context, finalFarmAssignments);
   const remaining = Object.fromEntries(TYPE_ORDER.map(type => [type, input.workers[type].count]));
-  farmAssignments.forEach(({ type, count }) => { remaining[type] -= count; });
+  finalFarmAssignments.forEach(({ type, count }) => { remaining[type] -= count; });
 
-  const assignments = farmAssignments.map(assignment => ({ ...assignment }));
+  const assignments = finalFarmAssignments.map(assignment => ({ ...assignment }));
   const campaignCapacity = effectiveCampaignCap_(input);
   let campaignAssigned = 0;
   let campaignPower = 0;

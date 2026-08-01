@@ -923,6 +923,32 @@ function solveOptimizer_(ui, missions, campaignMission, rng, onProgress) {
     }
   }
 
+  function removeRedundantCappedWorkers_() {
+    // Once the two-second floor is reached, additional power has no value.
+    // Release zero-marginal workers from most to least expensive before the
+    // campaign remainder is assigned.
+    farmMissionPool.forEach(mission => {
+      const cappedRunsPerHour = 60 / MIN_DURATION_MINS;
+      if (mission.currentRunsPerHour < cappedRunsPerHour) return;
+      const requiredPower = mission.baseMins / (globalSpeedMult * MIN_DURATION_MINS);
+      for (let typeIndex = TYPE_ORDER.length - 1; typeIndex >= 0; typeIndex--) {
+        const type = TYPE_ORDER[typeIndex];
+        const count = missionWorkerCounts[mission.name][type] || 0;
+        const power = workerPowers[type] || 0;
+        if (count <= 0 || power <= 0) continue;
+        const removable = Math.min(count, Math.max(0, Math.floor((mission.currentPower - requiredPower) / power)));
+        if (removable <= 0) continue;
+        mission.assignedUnits -= removable;
+        mission.currentPower -= power * removable;
+        mission.currentRunsPerHour = missionRunsPerHour(mission.baseMins, mission.currentPower);
+        missionWorkerCounts[mission.name][type] -= removable;
+        if (missionWorkerCounts[mission.name][type] <= 0) delete missionWorkerCounts[mission.name][type];
+        addAssignment(mission.name, type, -removable);
+        workers[type].count += removable;
+      }
+    });
+  }
+
   function simulatedAnnealingPolish_() {
     const farmMissions = farmMissionPool;
     if (farmMissions.length < 2) return;
@@ -1160,6 +1186,7 @@ function solveOptimizer_(ui, missions, campaignMission, rng, onProgress) {
     restoreState_(preAnnealSnap);
   }
   assignUnassignedTieBreakers_();
+  removeRedundantCappedWorkers_();
 
   // Hard phase boundary: campaign cannot influence or take workers back from
   // the final selected-farm solution.
