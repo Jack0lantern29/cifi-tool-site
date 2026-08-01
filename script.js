@@ -2,19 +2,19 @@ import {
   ALL_FARM_MISSIONS,
   MATS,
   TYPE_ORDER
-} from "./src/data.js";
-import { canonicalStringify } from "./src/random.js";
-import { clearState, loadState, saveState } from "./src/state.js";
-import { OptimizerCancelledError, OptimizerWorkerClient } from "./src/worker-client.js";
+} from "./src/data.js?v=3.0.1";
+import { canonicalStringify } from "./src/random.js?v=3.0.1";
+import { clearState, loadState, saveState } from "./src/state.js?v=3.0.1";
+import { OptimizerCancelledError, OptimizerWorkerClient } from "./src/worker-client.js?v=3.0.1";
 import {
   createDefaultInput,
   getAvailableModes,
   getVisibleCampaignNames,
   getVisibleFarmNames,
   validateInput
-} from "./src/validation.js";
+} from "./src/validation.js?v=3.0.1";
 
-const APP_VERSION = "3.0.0";
+const APP_VERSION = "3.0.1";
 const elements = new Map();
 const byId = id => {
   if (!elements.has(id)) elements.set(id, document.getElementById(id));
@@ -34,7 +34,7 @@ let saveTimer = null;
 let suppressNextCancellationStatus = false;
 const workerClient = new OptimizerWorkerClient(() => {
   if (!window.Worker) throw new Error("This browser does not support background optimisation.");
-  return new Worker(new URL("./src/worker.js", import.meta.url), { type: "module" });
+  return new Worker(new URL("./src/worker.js?v=3.0.1", import.meta.url), { type: "module" });
 });
 
 function setTab(button, focus = false) {

@@ -1,4 +1,4 @@
-import { MATS } from "./data.js";
+import { MATS } from "./data.js?v=3.0.1";
 
 export const OBJECTIVE_EPSILON = 1e-9;
 export const PROOF_RELATIVE_GAP = 1e-8;
