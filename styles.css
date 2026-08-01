@@ -40,6 +40,13 @@ body {
   min-height: 100vh;
 }
 
+.noscript-notice {
+  padding: 14px;
+  color: #fff;
+  text-align: center;
+  background: #8a2929;
+}
+
 .shell {
   width: min(var(--shell-width), calc(100% - 40px));
   margin: 0 auto;
@@ -396,6 +403,83 @@ select:focus {
   display: none !important;
 }
 
+.hybrid-weight-control {
+  padding: 14px;
+  border: 1px solid rgba(80, 89, 196, 0.42);
+  border-radius: 12px;
+  background: rgba(21, 31, 78, 0.7);
+}
+
+.hybrid-weight-heading,
+.hybrid-weight-labels {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.hybrid-weight-heading {
+  margin-bottom: 10px;
+  font-weight: 800;
+}
+
+.hybrid-weight-total {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+
+.hybrid-weight-labels {
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.hybrid-weight-labels output {
+  color: var(--text);
+  font-weight: 800;
+}
+
+.hybrid-weight-slider {
+  --fragment-weight: 75%;
+  width: 100%;
+  height: 8px;
+  margin: 8px 0 4px;
+  border-radius: 999px;
+  appearance: none;
+  background: linear-gradient(90deg, var(--gold) 0 var(--fragment-weight), var(--emerald) var(--fragment-weight) 100%);
+  cursor: pointer;
+}
+
+.hybrid-weight-slider::-webkit-slider-thumb {
+  width: 22px;
+  height: 22px;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  appearance: none;
+  background: #24316d;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.38);
+}
+
+.hybrid-weight-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background: #24316d;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.38);
+}
+
+.hybrid-weight-slider:focus-visible {
+  outline: 3px solid rgba(245, 184, 31, 0.72);
+  outline-offset: 4px;
+}
+
+[hidden] {
+  display: none !important;
+}
+
 @media (max-width: 860px) {
   .grid-3 {
     grid-template-columns: 1fr;
@@ -623,6 +707,24 @@ select:focus {
   padding: 18px 18px 0;
 }
 
+.effort-help {
+  max-width: 26rem;
+  margin-top: 0.35rem;
+}
+
+.effort-toggle {
+  min-height: 44px;
+  font-weight: 800;
+}
+
+.effort-note {
+  margin-left: 0.25rem;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
 .campaign-farm-selection {
   border-top: 1px solid rgba(255,255,255,0.04);
 }
@@ -742,4 +844,105 @@ select:focus {
 
 .output-placeholder .table-wrap {
   margin-top: 0;
+}
+
+.site-notice,
+.validation-summary,
+.result-notices {
+  margin: 0 0 18px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  line-height: 1.5;
+}
+
+.site-notice,
+.result-notices {
+  color: #fff7da;
+  background: rgba(255, 183, 0, 0.09);
+  border: 1px solid rgba(255, 183, 0, 0.28);
+}
+
+.result-notices {
+  margin: 0 18px 18px;
+}
+
+.result-notices p {
+  margin: 0;
+}
+
+.result-notices p + p {
+  margin-top: 6px;
+}
+
+.validation-summary {
+  color: #ffe7e7;
+  background: rgba(196, 54, 54, 0.16);
+  border: 1px solid rgba(255, 112, 112, 0.42);
+}
+
+.validation-summary ul {
+  margin: 8px 0 0;
+  padding-left: 22px;
+}
+
+.validation-summary a,
+.input-error {
+  color: #ffb8b8;
+}
+
+.input-error {
+  margin: 7px 0 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+[aria-invalid="true"] {
+  border-color: #ff7070 !important;
+  box-shadow: 0 0 0 3px rgba(255, 112, 112, 0.14) !important;
+}
+
+.optimizer-progress {
+  width: 100%;
+  height: 8px;
+  margin-top: 12px;
+  accent-color: var(--emerald);
+}
+
+.summary-value--compact {
+  font-size: 0.98rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.output-unassigned-table td:last-child,
+.output-unassigned-table th:last-child {
+  text-align: right;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  transform: none !important;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+.mission-tile:has(.mission-tile-input:focus-visible) {
+  outline: 3px solid var(--gold);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }

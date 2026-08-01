@@ -1,0 +1,14 @@
+{
+  "name": "cifi-zeus-mission-optimizer",
+  "version": "3.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "vendor:highs": "node scripts/vendor-highs.mjs",
+    "check": "node --check script.js && node --check src/optimizer.js && node --check src/crazy-optimizer.js && node --test"
+  },
+  "dependencies": {
+    "highs": "1.15.3-pre.4"
+  }
+}

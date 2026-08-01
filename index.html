@@ -4,12 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CIFI Zeus Mission Optimizer</title>
+  <meta name="description" content="Deterministic personnel allocation for CIFI farm and campaign missions." />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+  <noscript><div class="noscript-notice">JavaScript is required to run the mission optimizer.</div></noscript>
   <header class="site-header">
     <div class="shell header-shell">
       <div class="title-block">
@@ -20,16 +22,16 @@
     </div>
   </header>
 
-  <nav class="site-nav">
-    <div class="shell nav-shell">
-      <button class="tab-button active" data-tab="optimizer">Optimizer</button>
-      <button class="tab-button" data-tab="faq">FAQ</button>
-      <button class="tab-button" data-tab="credits">Credits and Changelog</button>
+  <nav class="site-nav" aria-label="Primary">
+    <div class="shell nav-shell" role="tablist" aria-label="Site sections">
+      <button id="tab-optimizer" class="tab-button active" data-tab="optimizer" role="tab" aria-controls="optimizer" aria-selected="true">Optimizer</button>
+      <button id="tab-faq" class="tab-button" data-tab="faq" role="tab" aria-controls="faq" aria-selected="false" tabindex="-1">FAQ</button>
+      <button id="tab-credits" class="tab-button" data-tab="credits" role="tab" aria-controls="credits" aria-selected="false" tabindex="-1">Credits and Changelog</button>
     </div>
   </nav>
 
   <main class="shell main-shell">
-    <section id="optimizer" class="tab-panel active">
+    <section id="optimizer" class="tab-panel active" role="tabpanel" aria-labelledby="tab-optimizer">
       <section class="content-card ouro-control-card">
         <div class="ouro-control-row">
           <label class="ouro-toggle">
@@ -43,19 +45,33 @@
         <div class="run-controls">
           <div class="inline-field">
             <label class="field-label compact" for="modeSelect">Mode</label>
-            <select id="modeSelect">
-              <option selected>Fragments + Resources</option>
-              <option>Fragments</option>
-              <option>Maximising Resources</option>
-              <option>Academy Points</option>
-              <option>Max Completions</option>
-            </select>
+            <select id="modeSelect"></select>
+          </div>
+
+          <div class="inline-field">
+            <label class="checkbox-row effort-toggle" for="searchEffort">
+              <input id="searchEffort" type="checkbox" />
+              <span>Overkill Mode <small class="effort-note">- may take a while</small></span>
+            </label>
           </div>
 
           <div class="action-group">
             <button class="action-button action-button--primary" id="runOptimizerBtn" type="button">Run Optimizer</button>
+            <button class="action-button hidden" id="cancelOptimizerBtn" type="button">Cancel</button>
             <button class="action-button" id="resetInputsBtn" type="button">Reset Inputs</button>
           </div>
+        </div>
+
+        <div id="hybridWeightControl" class="hybrid-weight-control ouro-only hybrid-mode-only hidden" aria-hidden="true">
+          <div class="hybrid-weight-heading">
+            <label for="hybridFragmentPercent">Fragments &amp; Resources Priority</label>
+            <span class="hybrid-weight-total">Total: 100%</span>
+          </div>
+          <div class="hybrid-weight-labels" aria-hidden="true">
+            <span>Fragments <output id="hybridFragmentPercentText" for="hybridFragmentPercent">75%</output></span>
+            <span><output id="hybridResourcePercentText" for="hybridFragmentPercent">25%</output> Resources</span>
+          </div>
+          <input id="hybridFragmentPercent" class="hybrid-weight-slider" type="range" min="0" max="100" step="1" value="75" aria-label="Fragment priority percentage" aria-valuetext="75% fragments, 25% resources" />
         </div>
 
         <div class="section-jumps">
@@ -67,6 +83,12 @@
           <button class="jump-button" data-jump="modifiers">Modifiers</button>
           <button class="jump-button" data-jump="output">Output</button>
         </div>
+      </div>
+
+      <div id="stateNotice" class="site-notice hidden" role="status" aria-live="polite"></div>
+      <div id="validationSummary" class="validation-summary hidden" role="alert" tabindex="-1">
+        <strong>Check the highlighted inputs.</strong>
+        <ul id="validationList"></ul>
       </div>
 
       <section id="personnel" class="content-card">
@@ -87,23 +109,23 @@
             <tbody>
               <tr>
                 <td>Mining Pod</td>
-                <td data-label="Power"><input id="power-mining-pod" type="number" step="0.1" min="0" value="0" /></td>
-                <td data-label="Count"><input id="count-mining-pod" type="number" step="1" min="0" value="0" /></td>
+                <td data-label="Power"><input id="power-mining-pod" aria-label="Mining Pod power" type="number" step="0.1" min="0" value="0" /></td>
+                <td data-label="Count"><input id="count-mining-pod" aria-label="Mining Pod count" type="number" step="1" min="0" value="0" /></td>
               </tr>
               <tr>
                 <td>Fireteam Carrier</td>
-                <td data-label="Power"><input id="power-fireteam-carrier" type="number" step="0.1" min="0" value="0" /></td>
-                <td data-label="Count"><input id="count-fireteam-carrier" type="number" step="1" min="0" value="0" /></td>
+                <td data-label="Power"><input id="power-fireteam-carrier" aria-label="Fireteam Carrier power" type="number" step="0.1" min="0" value="0" /></td>
+                <td data-label="Count"><input id="count-fireteam-carrier" aria-label="Fireteam Carrier count" type="number" step="1" min="0" value="0" /></td>
               </tr>
               <tr>
                 <td>Titan Hauler</td>
-                <td data-label="Power"><input id="power-titan-hauler" type="number" step="0.1" min="0" value="0" /></td>
-                <td data-label="Count"><input id="count-titan-hauler" type="number" step="1" min="0" value="0" /></td>
+                <td data-label="Power"><input id="power-titan-hauler" aria-label="Titan Hauler power" type="number" step="0.1" min="0" value="0" /></td>
+                <td data-label="Count"><input id="count-titan-hauler" aria-label="Titan Hauler count" type="number" step="1" min="0" value="0" /></td>
               </tr>
               <tr>
                 <td>Combat Corvette</td>
-                <td data-label="Power"><input id="power-combat-corvette" type="number" step="0.1" min="0" value="0" /></td>
-                <td data-label="Count"><input id="count-combat-corvette" type="number" step="1" min="0" value="0" /></td>
+                <td data-label="Power"><input id="power-combat-corvette" aria-label="Combat Corvette power" type="number" step="0.1" min="0" value="0" /></td>
+                <td data-label="Count"><input id="count-combat-corvette" aria-label="Combat Corvette count" type="number" step="1" min="0" value="0" /></td>
               </tr>
             </tbody>
           </table>
@@ -144,56 +166,7 @@
 
           <div class="field-card campaign-enabled-only hidden">
             <label class="field-label" for="campaignTarget">Campaign Target</label>
-            <select id="campaignTarget">
-              <option>C1-1</option>
-              <option>C1-2</option>
-              <option>C1-3</option>
-              <option>C1-4</option>
-              <option>C1-5</option>
-              <option>C1-6</option>
-              <option>C1-7</option>
-              <option>C1-8</option>
-              <option>C1-9</option>
-              <option>C1-10</option>
-              <option>C1-11</option>
-              <option>C1-12</option>
-              <option>C2-1</option>
-              <option>C2-2</option>
-              <option>C2-3</option>
-              <option>C2-4</option>
-              <option>C2-5</option>
-              <option>C2-6</option>
-              <option>C2-7</option>
-              <option>C2-8</option>
-              <option>C2-9</option>
-              <option>C2-10</option>
-              <option>C2-11</option>
-              <option>C2-12</option>
-              <option>C3-1</option>
-              <option>C3-2</option>
-              <option>C3-3</option>
-              <option>C3-4</option>
-              <option>C3-5</option>
-              <option>C3-6</option>
-              <option>C3-7</option>
-              <option>C3-8</option>
-              <option>C3-9</option>
-              <option>C3-10</option>
-              <option>C3-11</option>
-              <option>C3-12</option>
-              <option>C4-1</option>
-              <option>C4-2</option>
-              <option>C4-3</option>
-              <option>C4-4</option>
-              <option>C4-5</option>
-              <option>C4-6</option>
-              <option>C4-7</option>
-              <option>C4-8</option>
-              <option>C4-9</option>
-              <option>C4-10</option>
-              <option selected>C4-11</option>
-              <option>C4-12</option>
-            </select>
+            <select id="campaignTarget"></select>
           </div>
 
           <div class="field-card ouro-only campaign-enabled-only hidden">
@@ -231,14 +204,14 @@
               </tr>
             </thead>
             <tbody>
-              <tr><td>Difar</td><td data-label="Priority"><select id="priority-Difar"><option selected>Normal</option><option>Boosted</option></select></td></tr>
-              <tr><td>Kento</td><td data-label="Priority"><select id="priority-Kento"><option selected>Normal</option><option>Boosted</option></select></td></tr>
-              <tr><td>Chromium</td><td data-label="Priority"><select id="priority-Chromium"><option selected>Normal</option><option>Boosted</option></select></td></tr>
-              <tr><td>Exon</td><td data-label="Priority"><select id="priority-Exon"><option selected>Normal</option><option>Boosted</option></select></td></tr>
-              <tr><td>Organium</td><td data-label="Priority"><select id="priority-Organium"><option selected>Normal</option><option>Boosted</option></select></td></tr>
-              <tr><td>Adamorphium</td><td data-label="Priority"><select id="priority-Adamorphium"><option selected>Normal</option><option>Boosted</option></select></td></tr>
-              <tr><td>Moskom</td><td data-label="Priority"><select id="priority-Moskom"><option selected>Normal</option><option>Boosted</option></select></td></tr>
-              <tr><td>Darkseid</td><td data-label="Priority"><select id="priority-Darkseid"><option selected>Normal</option><option>Boosted</option></select></td></tr>
+              <tr><td>Difar</td><td data-label="Priority"><select id="priority-Difar" aria-label="Difar priority"><option selected>Normal</option><option>Boosted</option></select></td></tr>
+              <tr><td>Kento</td><td data-label="Priority"><select id="priority-Kento" aria-label="Kento priority"><option selected>Normal</option><option>Boosted</option></select></td></tr>
+              <tr><td>Chromium</td><td data-label="Priority"><select id="priority-Chromium" aria-label="Chromium priority"><option selected>Normal</option><option>Boosted</option></select></td></tr>
+              <tr><td>Exon</td><td data-label="Priority"><select id="priority-Exon" aria-label="Exon priority"><option selected>Normal</option><option>Boosted</option></select></td></tr>
+              <tr><td>Organium</td><td data-label="Priority"><select id="priority-Organium" aria-label="Organium priority"><option selected>Normal</option><option>Boosted</option></select></td></tr>
+              <tr><td>Adamorphium</td><td data-label="Priority"><select id="priority-Adamorphium" aria-label="Adamorphium priority"><option selected>Normal</option><option>Boosted</option></select></td></tr>
+              <tr><td>Moskom</td><td data-label="Priority"><select id="priority-Moskom" aria-label="Moskom priority"><option selected>Normal</option><option>Boosted</option></select></td></tr>
+              <tr><td>Darkseid</td><td data-label="Priority"><select id="priority-Darkseid" aria-label="Darkseid priority"><option selected>Normal</option><option>Boosted</option></select></td></tr>
             </tbody>
           </table>
         </div>
@@ -268,7 +241,7 @@
           <div class="field-card field-card--checkbox">
             <label class="field-label">Engineering Badge?</label>
             <label class="checkbox-row">
-              <input id="engineeringBadge" type="checkbox" checked />
+              <input id="engineeringBadge" type="checkbox" aria-label="Engineering Badge enabled" />
               <span>Enabled</span>
             </label>
           </div>
@@ -324,13 +297,13 @@
 
           <div class="field-card ouro-only">
             <label class="field-label" for="relic3">T1 Relic 3 Level</label>
-            <input id="relic3" type="number" step="1" min="0" value="30" />
+            <input id="relic3" type="number" step="1" min="0" value="0" />
           </div>
 
           <div class="field-card ouro-only field-card--checkbox">
             <label class="field-label">Trait Sphere 07</label>
             <label class="checkbox-row">
-              <input id="ts07" type="checkbox" />
+              <input id="ts07" type="checkbox" aria-label="Trait Sphere 07 enabled" />
               <span>Enabled</span>
             </label>
           </div>
@@ -340,13 +313,14 @@
       <section id="output" class="content-card output-placeholder">
         <div class="card-header">
           <h2>Output</h2>
-          <p>Outputs the most optimal mission distribution for personnel.</p>
+          <p>Shows the allocation, selected farm scope, campaign use, and elapsed runtime.</p>
         </div>
 
         <div class="grid grid-3 summary-grid">
           <div class="field-card">
             <label class="field-label">Status</label>
-            <div class="summary-value" id="statusText">Ready</div>
+            <div class="summary-value" id="statusText" role="status" aria-live="polite">Ready</div>
+            <progress id="optimizerProgress" class="optimizer-progress hidden" max="1" value="0">0%</progress>
           </div>
           <div class="field-card">
             <label class="field-label">Campaign ETA (hrs)</label>
@@ -356,7 +330,18 @@
             <label class="field-label">Mode Used</label>
             <div class="summary-value" id="modeUsedText">—</div>
           </div>
+          <div class="field-card">
+            <label class="field-label">Elapsed Time</label>
+            <div class="summary-value" id="elapsedText">—</div>
+          </div>
+          <div class="field-card">
+            <label class="field-label">Selected Farms</label>
+            <div class="summary-value" id="selectedFarmCountText">—</div>
+            <p class="tiny-note" id="selectedFarmNamesText">—</p>
+          </div>
         </div>
+
+        <div id="resultNotices" class="result-notices hidden" role="status" aria-live="polite"></div>
 
         <div class="output-block-header">Mission Distribution</div>
         <div class="table-wrap">
@@ -387,10 +372,20 @@
             </tbody>
           </table>
         </div>
+
+        <div class="output-block-header">Unassigned Personnel</div>
+        <div class="table-wrap">
+          <table class="data-table output-unassigned-table">
+            <thead><tr><th>Personnel Type</th><th>Remaining</th></tr></thead>
+            <tbody id="unassignedBody">
+              <tr><td colspan="2">Run the optimizer to show remaining personnel.</td></tr>
+            </tbody>
+          </table>
+        </div>
       </section>
     </section>
 
-    <section id="faq" class="tab-panel">
+    <section id="faq" class="tab-panel" role="tabpanel" aria-labelledby="tab-faq" hidden>
       <div class="content-card">
         <div class="card-header">
           <h2>FAQ</h2>
@@ -401,15 +396,23 @@
             <h3>What are the different modes?</h3>
             <p><b>Maximising Resources</b> — focuses on generating the highest overall resource value, using your Normal and Boosted resource settings to decide which materials should be prioritised.</p>
             <p><b>Fragments</b> — focuses entirely on maximising fragment gain, making it the best choice when fragment farming is your main goal.</p>
-            <p><b>Fragments + Resources</b> — prioritises fragment gain first, then uses resource value as a secondary factor to choose the best mission distribution.</p>
+            <p><b>Fragments + Resources</b> — balances fragments and resource utility using your selected percentages after normalising both against independently optimised ideals.</p>
             <p><b>Academy Points</b> — focuses on maximising Academy Point income.</p>
             <p><b>Max Completions</b> — focuses on achieving the highest possible number of mission completions.</p>
+          </div>
+          <div class="faq-item">
+            <h3>What is Overkill Mode?</h3>
+            <p>Runs until the optimal solution is found (may take a while).</p>
+          </div>
+          <div class="faq-item">
+            <h3>Where are my settings saved?</h3>
+            <p>Settings are stored only in this browser. Existing settings from the previous site version are upgraded automatically.</p>
           </div>
         </div>
       </div>
     </section>
 
-    <section id="credits" class="tab-panel">
+    <section id="credits" class="tab-panel" role="tabpanel" aria-labelledby="tab-credits" hidden>
       <div class="content-card">
         <div class="card-header">
           <h2>Credits and Changelog</h2>
@@ -417,6 +420,10 @@
         </div>
 
         <div class="changelog-list">
+          <div class="changelog-item">
+            <span class="tag">v3.0 Optimisation Update</span>
+            <p>Added deterministic background optimisation, Overkill Mode, adjustable fragment and resource priorities, improved validation and accessibility, and strict farm-first campaign allocation.</p>
+          </div>
           <div class="changelog-item">
             <span class="tag">v2.3 Campaign and Modifier Update</span>
             <p>Added campaign-only concurrent farm mission selection, replacing the previous campaign focus setting.</p>
@@ -441,6 +448,6 @@
     </section>
   </main>
 
-  <script src="script.js"></script>
+  <script type="module" src="script.js"></script>
 </body>
 </html>
