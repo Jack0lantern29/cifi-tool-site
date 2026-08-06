@@ -6,7 +6,7 @@ import {
   OURO_OFF_VISIBLE_FARMS,
   TYPE_ORDER,
   TYPE_RANK
-} from "./data.js?v=3.0.1";
+} from "./data.js?v=3.0.2";
 import {
   compareSummaries,
   describeObjective,
@@ -15,10 +15,10 @@ import {
   PROOF_RELATIVE_GAP,
   relativeGap,
   summaryFromTotals
-} from "./objective.js?v=3.0.1";
-import { optimize, OptimizerValidationError } from "./optimizer.js?v=3.0.1";
-import { deriveSeed, formatRunId } from "./random.js?v=3.0.1";
-import { calculateGlobalSpeedMultiplier, validateInput } from "./validation.js?v=3.0.1";
+} from "./objective.js?v=3.0.2";
+import { optimize, OptimizerValidationError } from "./optimizer.js?v=3.0.2";
+import { deriveSeed, formatRunId } from "./random.js?v=3.0.2";
+import { calculateGlobalSpeedMultiplier, validateInput } from "./validation.js?v=3.0.2";
 
 const MAX_RUNS_PER_HOUR = 1800;
 const NUMERIC_EPSILON = 1e-9;
@@ -28,9 +28,9 @@ let highsPromise;
 
 async function loadSolver_() {
   if (!highsPromise) {
-    highsPromise = import("../vendor/highs/highs.mjs?v=3.0.1").then(({ default: loadHighs }) => loadHighs({
+    highsPromise = import("../vendor/highs/highs.mjs?v=3.0.2").then(({ default: loadHighs }) => loadHighs({
       locateFile: file => file.endsWith(".wasm")
-        ? new URL("../vendor/highs/highs.wasm?v=3.0.1", import.meta.url).href
+        ? new URL("../vendor/highs/highs.wasm?v=3.0.2", import.meta.url).href
         : file,
       print: () => {},
       printErr: () => {}
@@ -588,7 +588,7 @@ export async function optimizeCrazy(rawInput, options = {}) {
     solutionStatus: "best-found",
     upperBound: null,
     relativeGap: null,
-    solverStats: { engine: "CIFI heuristic", version: "3.0.1", nodes: 0, iterations: standard.solverStats?.iterations || 0 },
+    solverStats: { engine: "CIFI heuristic", version: "3.0.2", nodes: 0, iterations: standard.solverStats?.iterations || 0 },
     hybridIdeals: standard.hybridIdeals,
     seed
   });

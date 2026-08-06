@@ -1,5 +1,5 @@
-import { optimize, OptimizerValidationError } from "./optimizer.js?v=3.0.1";
-import { optimizeCrazy } from "./crazy-optimizer.js?v=3.0.1";
+import { optimize, OptimizerValidationError } from "./optimizer.js?v=3.0.2";
+import { optimizeCrazy } from "./crazy-optimizer.js?v=3.0.2";
 
 self.addEventListener("message", async event => {
   const { type, requestId, input } = event.data || {};
