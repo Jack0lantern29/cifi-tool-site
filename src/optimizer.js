@@ -8,16 +8,16 @@ import {
   OURO_OFF_VISIBLE_FARMS,
   TYPE_ORDER,
   TYPE_RANK
-} from "./data.js?v=3.0.2";
-import { createSeededRandom, deriveSeed, formatRunId } from "./random.js?v=3.0.2";
+} from "./data.js?v=3.0.1";
+import { createSeededRandom, deriveSeed, formatRunId } from "./random.js?v=3.0.1";
 import {
   compareSummaries,
   describeObjective,
   getModeKind,
   normalizedHybridScore,
   summaryFromTotals
-} from "./objective.js?v=3.0.2";
-import { calculateGlobalSpeedMultiplier, validateInput } from "./validation.js?v=3.0.2";
+} from "./objective.js?v=3.0.1";
+import { calculateGlobalSpeedMultiplier, validateInput } from "./validation.js?v=3.0.1";
 
 const MIN_DURATION_MINS = 2 / 60;
 const EPS = 1e-9;
@@ -369,10 +369,13 @@ function solveOptimizer_(ui, missions, campaignMission, rng, onProgress) {
   function assignRemainingWorkersToCampaign_() {
     if (!ui.campaignEnabled || !campaignMission) return;
 
-    // TYPE_ORDER is cheapest-to-most-expensive. Campaign receives only the
-    // personnel left after the farm solution has been completely finalised.
-    for (let ti = 0; ti < TYPE_ORDER.length; ti++) {
-      const type = TYPE_ORDER[ti];
+    // Campaign receives only the personnel left after the farm solution has
+    // been finalised, with the strongest available personnel taking its
+    // limited slots first to minimise campaign ETA.
+    const campaignTypeOrder = [...TYPE_ORDER].sort((a, b) =>
+      (workerPowers[b] || 0) - (workerPowers[a] || 0) || TYPE_RANK[a] - TYPE_RANK[b]);
+    for (let ti = 0; ti < campaignTypeOrder.length; ti++) {
+      const type = campaignTypeOrder[ti];
       const worker = workers[type];
       if (!worker || worker.count <= 0 || worker.power <= 0) continue;
 
@@ -1216,7 +1219,7 @@ function solveOptimizer_(ui, missions, campaignMission, rng, onProgress) {
     searchEffort: "standard",
     solutionStatus: "best-found",
     objective: { ...objective, upperBound: null, relativeGap: null },
-    solverStats: { engine: "CIFI heuristic", version: "3.0.2", nodes: 0, iterations: runResults.length },
+    solverStats: { engine: "CIFI heuristic", version: "3.0.1", nodes: 0, iterations: runResults.length },
     hybridIdeals: hybridIdeals ? { ...hybridIdeals, proven: false } : null
   };
 }
@@ -1232,7 +1235,7 @@ export class OptimizerValidationError extends Error {
 /**
  * Pure deterministic optimiser entry point.
  * @param {import('./types.js').OptimizerInput} rawInput
- * @param {{ seed?: number, onProgress?: (progress: {phase: string, completed: number, total: number}) => void }} options
+ * @param {{ seed?: number, onProgress?: (progress: {phase: string, determinate: boolean, completed: number, total: number, elapsedMs?: number, nodes?: number, upperBound?: number, relativeGap?: number}) => void }} options
  * @returns {import('./types.js').OptimizerResult}
  */
 export function optimize(rawInput, options = {}) {
@@ -1259,6 +1262,7 @@ export function optimize(rawInput, options = {}) {
   const solverSeed = Number.isInteger(options.seed) ? options.seed >>> 0 : deriveSeed(solverSeedInput);
   const rng = createSeededRandom(solverSeed);
   const onProgress = typeof options.onProgress === "function" ? options.onProgress : () => {};
+  const reportProgress = progress => onProgress({ determinate: true, ...progress });
   const workerPowers = Object.fromEntries(TYPE_ORDER.map(type => [type, input.workers[type].power]));
   const selectedFarmMissions = new Set(input.selectedFarmMissions);
   const selectedCampaignFarmMissions = new Set(input.selectedCampaignFarmMissions);
@@ -1274,9 +1278,9 @@ export function optimize(rawInput, options = {}) {
     hybridIdeals: null
   };
 
-  onProgress({ phase: "preparing", completed: 0, total: 1 });
+  reportProgress({ phase: "preparing", completed: 0, total: 1 });
   if (getModeKind(input.mode) === "hybrid") {
-    onProgress({ phase: "estimating-ideals", completed: 0, total: 2 });
+    reportProgress({ phase: "estimating-ideals", completed: 0, total: 2 });
     const effectiveFarms = input.campaignEnabled ? selectedCampaignFarmMissions : selectedFarmMissions;
     const idealBase = {
       ...ui,
@@ -1288,7 +1292,7 @@ export function optimize(rawInput, options = {}) {
     const fragmentUi = { ...idealBase, modeRaw: "Fragments", modeNorm: "fragments" };
     const fragmentPool = buildMissionPool_(fragmentUi);
     const fragmentResult = solveOptimizer_(fragmentUi, fragmentPool.missions, null, createSeededRandom(solverSeed ^ 0x9e3779b9), () => {});
-    onProgress({ phase: "estimating-ideals", completed: 1, total: 2 });
+    reportProgress({ phase: "estimating-ideals", completed: 1, total: 2 });
     const resourceUi = { ...idealBase, modeRaw: "Maximising Resources", modeNorm: "maximising resources" };
     const resourcePool = buildMissionPool_(resourceUi);
     const resourceResult = solveOptimizer_(resourceUi, resourcePool.missions, null, createSeededRandom(solverSeed ^ 0x85ebca6b), () => {});
@@ -1298,10 +1302,10 @@ export function optimize(rawInput, options = {}) {
       fragmentWeight: input.hybridFragmentPercent / 100,
       resourceWeight: 1 - input.hybridFragmentPercent / 100
     };
-    onProgress({ phase: "estimating-ideals", completed: 2, total: 2 });
+    reportProgress({ phase: "estimating-ideals", completed: 2, total: 2 });
   }
   const { missions, campaignMission } = buildMissionPool_(ui);
-  const result = solveOptimizer_(ui, missions, campaignMission, rng, onProgress);
+  const result = solveOptimizer_(ui, missions, campaignMission, rng, reportProgress);
   const unassignedWorkers = result.unassignedWorkers;
   const notices = [];
   if (result.selectedFarmCount === 0) notices.push("No farm missions were selected for this run.");
@@ -1309,7 +1313,7 @@ export function optimize(rawInput, options = {}) {
     notices.push("Campaign capacity was reached; some personnel remain unassigned.");
   }
   if (result.assignments.length === 0) notices.push("No personnel could be assigned with the current inputs.");
-  onProgress({ phase: "complete", completed: 1, total: 1 });
+  reportProgress({ phase: "complete", completed: 1, total: 1 });
   return { ...result, seed: runSeed, runId: formatRunId(runSeed), notices };
 }
 

@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=3.0.2" />
+  <link rel="stylesheet" href="styles.css?v=3.0.1" />
 </head>
 <body>
   <noscript><div class="noscript-notice">JavaScript is required to run the mission optimizer.</div></noscript>
@@ -60,6 +60,15 @@
             <button class="action-button hidden" id="cancelOptimizerBtn" type="button">Cancel</button>
             <button class="action-button" id="resetInputsBtn" type="button">Reset Inputs</button>
           </div>
+        </div>
+
+        <div id="runProgressPanel" class="run-progress hidden" aria-labelledby="runProgressPhase">
+          <div class="run-progress-heading">
+            <strong id="runProgressPhase" role="status" aria-live="polite">Preparing…</strong>
+            <span id="runProgressElapsed">Elapsed 0s</span>
+          </div>
+          <progress id="optimizerProgress" class="optimizer-progress" max="1" value="0" aria-label="Optimizer progress">0%</progress>
+          <div id="runProgressTelemetry" class="run-progress-telemetry">Waiting for solver telemetry…</div>
         </div>
 
         <div id="hybridWeightControl" class="hybrid-weight-control ouro-only hybrid-mode-only hidden" aria-hidden="true">
@@ -320,7 +329,6 @@
           <div class="field-card">
             <label class="field-label">Status</label>
             <div class="summary-value" id="statusText" role="status" aria-live="polite">Ready</div>
-            <progress id="optimizerProgress" class="optimizer-progress hidden" max="1" value="0">0%</progress>
           </div>
           <div class="field-card">
             <label class="field-label">Campaign ETA (hrs)</label>
@@ -402,7 +410,7 @@
           </div>
           <div class="faq-item">
             <h3>What is Overkill Mode?</h3>
-            <p>Runs until the optimal solution is found (may take a while).</p>
+            <p>Tries to find the best possible solution, but may take a while.</p>
           </div>
           <div class="faq-item">
             <h3>Where are my settings saved?</h3>
@@ -420,6 +428,10 @@
         </div>
 
         <div class="changelog-list">
+          <div class="changelog-item">
+            <span class="tag">v3.0.1 Overkill Update</span>
+            <p>Added a progress bar and sped up Overkill Mode.</p>
+          </div>
           <div class="changelog-item">
             <span class="tag">v3.0 Optimisation Update</span>
             <p>Added deterministic background optimisation, Overkill Mode, adjustable fragment and resource priorities, improved validation and accessibility, and strict farm-first campaign allocation.</p>
@@ -448,6 +460,6 @@
     </section>
   </main>
 
-  <script type="module" src="script.js?v=3.0.2"></script>
+  <script type="module" src="script.js?v=3.0.1"></script>
 </body>
 </html>

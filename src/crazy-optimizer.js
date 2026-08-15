@@ -6,7 +6,7 @@ import {
   OURO_OFF_VISIBLE_FARMS,
   TYPE_ORDER,
   TYPE_RANK
-} from "./data.js?v=3.0.2";
+} from "./data.js?v=3.0.1";
 import {
   compareSummaries,
   describeObjective,
@@ -15,10 +15,10 @@ import {
   PROOF_RELATIVE_GAP,
   relativeGap,
   summaryFromTotals
-} from "./objective.js?v=3.0.2";
-import { optimize, OptimizerValidationError } from "./optimizer.js?v=3.0.2";
-import { deriveSeed, formatRunId } from "./random.js?v=3.0.2";
-import { calculateGlobalSpeedMultiplier, validateInput } from "./validation.js?v=3.0.2";
+} from "./objective.js?v=3.0.1";
+import { optimize, OptimizerValidationError } from "./optimizer.js?v=3.0.1";
+import { deriveSeed, formatRunId } from "./random.js?v=3.0.1";
+import { calculateGlobalSpeedMultiplier, validateInput } from "./validation.js?v=3.0.1";
 
 const MAX_RUNS_PER_HOUR = 1800;
 const NUMERIC_EPSILON = 1e-9;
@@ -28,9 +28,9 @@ let highsPromise;
 
 async function loadSolver_() {
   if (!highsPromise) {
-    highsPromise = import("../vendor/highs/highs.mjs?v=3.0.2").then(({ default: loadHighs }) => loadHighs({
+    highsPromise = import("../vendor/highs/highs.mjs?v=3.0.1").then(({ default: loadHighs }) => loadHighs({
       locateFile: file => file.endsWith(".wasm")
-        ? new URL("../vendor/highs/highs.wasm?v=3.0.2", import.meta.url).href
+        ? new URL("../vendor/highs/highs.wasm?v=3.0.1", import.meta.url).href
         : file,
       print: () => {},
       printErr: () => {}
@@ -129,9 +129,86 @@ function removeRedundantCappedAssignments_(context, farmAssignments) {
   });
 }
 
+function redistributeBeneficialRemainder_(context, farmAssignments, hybridIdeals) {
+  const counts = new Map();
+  const missionState = new Map(context.missions.map(mission => [mission.name, { mission, units: 0, power: 0 }]));
+  const usedByType = Object.fromEntries(TYPE_ORDER.map(type => [type, 0]));
+  farmAssignments.forEach(({ name, type, count }) => {
+    if (count <= 0 || !missionState.has(name)) return;
+    const key = `${name}|${type}`;
+    counts.set(key, (counts.get(key) || 0) + count);
+    missionState.get(name).units += count;
+    missionState.get(name).power += context.input.workers[type].power * count;
+    usedByType[type] += count;
+  });
+
+  const evaluated = evaluateFarmAssignments_(context, farmAssignments);
+  let currentTotals = evaluated.totals;
+  let currentSummary = evaluated.summary;
+  const remainingByType = Object.fromEntries(context.workers.map(worker => [
+    worker.type,
+    Math.max(0, worker.count - usedByType[worker.type])
+  ]));
+  let openSlots = context.missions.reduce((sum, mission) =>
+    sum + Math.max(0, mission.cap - missionState.get(mission.name).units), 0);
+  while (openSlots > 0 && context.workers.some(worker => remainingByType[worker.type] > 0)) {
+    let bestWorker = null;
+    let bestState = null;
+    let bestTotals = null;
+    let bestSummary = null;
+    context.workers.forEach(worker => {
+      if (remainingByType[worker.type] <= 0) return;
+      context.missions.forEach(mission => {
+        const state = missionState.get(mission.name);
+        if (state.units >= mission.cap) return;
+        const oldRuns = Math.min(MAX_RUNS_PER_HOUR, mission.alpha * state.power);
+        const newRuns = Math.min(MAX_RUNS_PER_HOUR, mission.alpha * (state.power + worker.power));
+        const deltaRuns = newRuns - oldRuns;
+        if (deltaRuns <= NUMERIC_EPSILON) return;
+        const candidateTotals = { ...currentTotals };
+        candidateTotals.Completions += deltaRuns * context.tsMultiplier;
+        candidateTotals.Academy += deltaRuns * context.tsMultiplier * mission.academy;
+        candidateTotals.Fragments += deltaRuns * mission.fragmentYield;
+        MATS.forEach(material => {
+          candidateTotals[material] += deltaRuns * context.tsMultiplier * mission.rewards[material];
+        });
+        const candidateSummary = summaryFromTotals(candidateTotals, context.input.weights);
+        if (compareSummaries(context.input.mode, candidateSummary, currentSummary, hybridIdeals, 0) <= 0) return;
+        if (bestSummary && compareSummaries(context.input.mode, candidateSummary, bestSummary, hybridIdeals, 0) <= 0) return;
+        bestState = state;
+        bestTotals = candidateTotals;
+        bestSummary = candidateSummary;
+        bestWorker = worker;
+      });
+    });
+    if (!bestState || !bestWorker) break;
+    const key = `${bestState.mission.name}|${bestWorker.type}`;
+    counts.set(key, (counts.get(key) || 0) + 1);
+    bestState.units++;
+    bestState.power += bestWorker.power;
+    remainingByType[bestWorker.type]--;
+    openSlots--;
+    currentTotals = bestTotals;
+    currentSummary = bestSummary;
+  }
+
+  return [...counts].map(([key, count]) => {
+    const separator = key.lastIndexOf("|");
+    return { name: key.slice(0, separator), type: key.slice(separator + 1), count };
+  });
+}
+
+function rebalanceFarmAssignments_(context, farmAssignments, hybridIdeals) {
+  return redistributeBeneficialRemainder_(
+    context,
+    removeRedundantCappedAssignments_(context, farmAssignments),
+    hybridIdeals
+  );
+}
+
 function finalizeResult_(context, farmAssignments, metadata) {
   const { input } = context;
-  const finalFarmAssignments = removeRedundantCappedAssignments_(context, farmAssignments);
+  const finalFarmAssignments = rebalanceFarmAssignments_(context, farmAssignments, metadata.hybridIdeals);
   const { totals, summary } = evaluateFarmAssignments_(context, finalFarmAssignments);
   const remaining = Object.fromEntries(TYPE_ORDER.map(type => [type, input.workers[type].count]));
   finalFarmAssignments.forEach(({ type, count }) => { remaining[type] -= count; });
@@ -141,7 +218,7 @@ function finalizeResult_(context, farmAssignments, metadata) {
   let campaignAssigned = 0;
   let campaignPower = 0;
   if (input.campaignEnabled && campaignCapacity > 0) {
-    TYPE_ORDER.forEach(type => {
+    [...TYPE_ORDER].sort((a, b) => input.workers[b].power - input.workers[a].power || TYPE_RANK[a] - TYPE_RANK[b]).forEach(type => {
       if (campaignAssigned >= campaignCapacity || input.workers[type].power <= 0) return;
       const count = Math.min(remaining[type], campaignCapacity - campaignAssigned);
       if (count <= 0) return;
@@ -168,7 +245,7 @@ function finalizeResult_(context, farmAssignments, metadata) {
     notices.push("Campaign capacity was reached; some personnel remain unassigned.");
   }
   if (assignments.length === 0) notices.push("No personnel could be assigned with the current inputs.");
-  if (metadata.solutionStatus === "cancelled-best") notices.push("Crazy Optimisation was cancelled; this is the best complete allocation found before cancellation.");
+  if (metadata.solutionStatus === "cancelled-best") notices.push("Overkill was cancelled; this is the best complete allocation found before cancellation.");
 
   return {
     assignments,
@@ -251,9 +328,31 @@ class ModelBuilder_ {
   }
 }
 
+function maximumMissionPower_(context, mission) {
+  let slots = mission.cap;
+  let power = 0;
+  [...context.workers].sort((a, b) => b.power - a.power || TYPE_RANK[a.type] - TYPE_RANK[b.type]).forEach(worker => {
+    if (slots <= 0) return;
+    const count = Math.min(slots, worker.count);
+    power += count * worker.power;
+    slots -= count;
+  });
+  return power;
+}
+
+function missionRunUpperBound_(context, mission) {
+  return Math.min(MAX_RUNS_PER_HOUR, mission.alpha * maximumMissionPower_(context, mission));
+}
+
+function workerMissionUpperBound_(mission, worker) {
+  const usefulToReachFloor = Math.max(1, Math.ceil(MAX_RUNS_PER_HOUR / (mission.alpha * worker.power) - NUMERIC_EPSILON));
+  return Math.min(worker.count, mission.cap, usefulToReachFloor);
+}
+
 function maxResourceTotals_(context) {
   return Object.fromEntries(MATS.map(material => [material,
-    MAX_RUNS_PER_HOUR * context.tsMultiplier * context.missions.reduce((sum, mission) => sum + mission.rewards[material], 0)
+    context.tsMultiplier * context.missions.reduce((sum, mission) =>
+      sum + missionRunUpperBound_(context, mission) * mission.rewards[material], 0)
   ]));
 }
 
@@ -268,14 +367,14 @@ function buildModel_(highs, context, specification) {
   const x = new Map();
   context.missions.forEach((mission, missionIndex) => {
     context.workers.forEach(worker => {
-      const index = builder.addColumn(`x_${missionIndex}_${TYPE_RANK[worker.type]}`, 0, Math.min(worker.count, mission.cap), 0, true);
+      const index = builder.addColumn(`x_${missionIndex}_${TYPE_RANK[worker.type]}`, 0, workerMissionUpperBound_(mission, worker), 0, true);
       x.set(`${mission.name}|${worker.type}`, index);
     });
   });
   const runs = context.missions.map((mission, index) => builder.addColumn(
     `runs_${index}`,
     0,
-    MAX_RUNS_PER_HOUR,
+    missionRunUpperBound_(context, mission),
     specification.runCosts?.[mission.name] || 0,
     false
   ));
@@ -296,6 +395,15 @@ function buildModel_(highs, context, specification) {
     const powerEntries = [[runs[missionIndex], 1]];
     context.workers.forEach(worker => powerEntries.push([x.get(`${mission.name}|${worker.type}`), -mission.alpha * worker.power]));
     builder.addRow(powerEntries, -highs.infinity, 0);
+    if (missionRunUpperBound_(context, mission) >= MAX_RUNS_PER_HOUR - NUMERIC_EPSILON) {
+      const requiredPower = MAX_RUNS_PER_HOUR / mission.alpha;
+      const largestWorkerPower = Math.max(...context.workers.map(worker => worker.power));
+      builder.addRow(
+        context.workers.map(worker => [x.get(`${mission.name}|${worker.type}`), worker.power]),
+        -highs.infinity,
+        requiredPower + largestWorkerPower
+      );
+    }
   });
 
   (specification.linearMinimums || []).forEach(minimum => {
@@ -372,56 +480,106 @@ function safeInfo_(model, name, fallback) {
   }
 }
 
+function configureModel_(model, state) {
+  model.options.set({
+    output_flag: false,
+    mip_rel_gap: PROOF_RELATIVE_GAP,
+    mip_abs_gap: 0,
+    random_seed: state.seed & 0x7fffffff
+  });
+}
+
+async function solveExistingModel_(highs, context, model, layout, state) {
+  let latestProgress = 0;
+  if (state.warmAssignments?.length) {
+    model.setSolution({ colValue: vectorFromAssignments_(context, layout, state.warmAssignments) });
+  }
+  const callbackType = highs.constants.callbackType;
+  model.run({
+    [callbackType.mipImprovingSolution](event) {
+      if (!event.data.mip_solution) return;
+      const assignments = assignmentsFromVector_(context, layout, event.data.mip_solution);
+      state.onSolution?.(assignments, event.data.mip_dual_bound, event.data.mip_gap);
+    },
+    [callbackType.mipLogging](event) {
+      const now = performance.now();
+      if (now - latestProgress < 200) return;
+      latestProgress = now;
+      state.onProgress({
+        phase: state.phase,
+        determinate: false,
+        completed: 0,
+        total: 1,
+        nodes: (state.nodeOffset || 0) + Number(event.data.mip_node_count || 0n),
+        upperBound: event.data.mip_dual_bound,
+        relativeGap: event.data.mip_gap,
+        elapsedMs: now - state.startedAt
+      });
+    }
+  });
+  const status = model.getModelStatus();
+  const solutionStatus = safeInfo_(model, "primal_solution_status", 0);
+  if (solutionStatus !== highs.constants.solutionStatus.feasible && status !== highs.constants.modelStatus.optimal) {
+    throw new Error(`HiGHS ended without a feasible allocation (status ${status}).`);
+  }
+  const vector = model.getSolution().colValue;
+  const assignments = assignmentsFromVector_(context, layout, vector);
+  const objective = model.getObjectiveValue();
+  const nodes = safeInfo_(model, "mip_node_count", 0);
+  const dualBound = safeInfo_(model, "mip_dual_bound", objective);
+  return { assignments, objective, dualBound, nodes, status, optimal: status === highs.constants.modelStatus.optimal };
+}
+
 async function runModel_(highs, context, specification, state) {
   const { data, layout } = buildModel_(highs, context, specification);
   const model = highs.createModel(data);
-  let latestProgress = 0;
   try {
-    model.options.set({
-      output_flag: false,
-      mip_rel_gap: 0,
-      mip_abs_gap: 0,
-      random_seed: state.seed & 0x7fffffff
-    });
-    if (state.warmAssignments?.length) {
-      model.setSolution({ colValue: vectorFromAssignments_(context, layout, state.warmAssignments) });
-    }
-    const callbackType = highs.constants.callbackType;
-    model.run({
-      [callbackType.mipImprovingSolution](event) {
-        if (!event.data.mip_solution) return;
-        const assignments = assignmentsFromVector_(context, layout, event.data.mip_solution);
-        state.onSolution?.(assignments, event.data.mip_dual_bound, event.data.mip_gap);
-      },
-      [callbackType.mipLogging](event) {
-        const now = performance.now();
-        if (now - latestProgress < 200) return;
-        latestProgress = now;
-        state.onProgress({
-          phase: state.phase,
-          completed: 0,
-          total: 1,
-          nodes: Number(event.data.mip_node_count || 0n),
-          upperBound: event.data.mip_dual_bound,
-          relativeGap: event.data.mip_gap,
-          elapsedMs: now - state.startedAt
-        });
-      }
-    });
-    const status = model.getModelStatus();
-    const solutionStatus = safeInfo_(model, "primal_solution_status", 0);
-    if (solutionStatus !== highs.constants.solutionStatus.feasible && status !== highs.constants.modelStatus.optimal) {
-      throw new Error(`HiGHS ended without a feasible allocation (status ${status}).`);
-    }
-    const vector = model.getSolution().colValue;
-    const assignments = assignmentsFromVector_(context, layout, vector);
-    const objective = model.getObjectiveValue();
-    const nodes = safeInfo_(model, "mip_node_count", 0);
-    const dualBound = safeInfo_(model, "mip_dual_bound", objective);
-    return { assignments, objective, dualBound, nodes, status, optimal: status === highs.constants.modelStatus.optimal };
+    configureModel_(model, state);
+    return await solveExistingModel_(highs, context, model, layout, state);
   } finally {
     model.dispose();
   }
+}
+
+function sparseEntries_(entries) {
+  const combined = new Map();
+  entries.forEach(([index, value]) => {
+    if (Math.abs(value) <= NUMERIC_EPSILON) return;
+    combined.set(index, (combined.get(index) || 0) + value);
+  });
+  const sorted = [...combined.entries()]
+    .filter(([, value]) => Math.abs(value) > NUMERIC_EPSILON)
+    .sort((a, b) => a[0] - b[0]);
+  return { indices: sorted.map(([index]) => index), values: sorted.map(([, value]) => value) };
+}
+
+function addUtilityTangentRow_(model, highs, context, layout, material, point) {
+  const tangent = logarithmTangent(point, context.input.weights[material]);
+  const entries = [[layout.utility[material], 1]];
+  context.missions.forEach((mission, index) => {
+    entries.push([layout.runs[index], -tangent.slope * context.tsMultiplier * mission.rewards[material]]);
+  });
+  model.addRow(-highs.infinity, tangent.intercept, sparseEntries_(entries));
+}
+
+function addNonlinearMinimumRow_(model, highs, context, layout, minimum, pointTotals) {
+  let intercept = 0;
+  const entries = [];
+  context.missions.forEach((mission, index) => {
+    let coefficient = minimum.linearRunCosts?.[mission.name] || 0;
+    MATS.forEach(material => {
+      const tangent = logarithmTangent(pointTotals[material] || 0, context.input.weights[material]);
+      coefficient += minimum.utilityFactor * tangent.slope * context.tsMultiplier * mission.rewards[material];
+    });
+    entries.push([layout.runs[index], coefficient]);
+  });
+  MATS.forEach(material => {
+    intercept += minimum.utilityFactor * logarithmTangent(
+      pointTotals[material] || 0,
+      context.input.weights[material]
+    ).intercept;
+  });
+  model.addRow(minimum.value - intercept, highs.infinity, sparseEntries_(entries));
 }
 
 function runCosts_(context, kind) {
@@ -446,107 +604,164 @@ function resourceTotalsFromAssignments_(context, assignments) {
 }
 
 function addUniquePoint_(points, totals) {
-  let added = false;
+  const added = [];
   MATS.forEach(material => {
     const value = Math.max(0, totals[material] || 0);
     if (!points[material].some(existing => Math.abs(existing - value) <= NUMERIC_EPSILON * Math.max(1, value))) {
       points[material].push(value);
-      added = true;
+      added.push([material, value]);
     }
   });
   return added;
 }
 
+function sameResourcePoint_(left, right) {
+  return MATS.every(material => {
+    const leftValue = left[material] || 0;
+    const rightValue = right[material] || 0;
+    return Math.abs(leftValue - rightValue) <= NUMERIC_EPSILON * Math.max(1, Math.abs(leftValue), Math.abs(rightValue));
+  });
+}
+
+function addUniqueResourcePoint_(points, totals) {
+  if (points.some(point => sameResourcePoint_(point, totals))) return false;
+  points.push(Object.fromEntries(MATS.map(material => [material, Math.max(0, totals[material] || 0)])));
+  return true;
+}
+
 async function solveLinear_(highs, context, runCosts, state, linearMinimums = [], nonlinearMinimums = []) {
   const result = await runModel_(highs, context, { runCosts, utilityFactor: 0, linearMinimums, nonlinearMinimums }, state);
-  if (!result.optimal) throw new Error("HiGHS stopped before proving the linear allocation optimal.");
+  if (!result.optimal) throw new Error("HiGHS stopped before reaching the configured linear optimality tolerance.");
   return result;
 }
 
 async function solveConcave_(highs, context, parameters, state) {
   const maximumTotals = maxResourceTotals_(context);
   const points = Object.fromEntries(MATS.map(material => [material, [0, maximumTotals[material]]]));
+  const vectors = [];
+  (parameters.initialPoints || []).forEach(totals => {
+    addUniquePoint_(points, totals);
+    addUniqueResourcePoint_(vectors, totals);
+  });
+  if (state.warmAssignments?.length) {
+    const warmTotals = resourceTotalsFromAssignments_(context, state.warmAssignments);
+    addUniquePoint_(points, warmTotals);
+    addUniqueResourcePoint_(vectors, warmTotals);
+  }
   let bestAssignments = state.warmAssignments || [];
   let bestValue = parameters.exactValue(bestAssignments);
   let totalNodes = 0;
   let iterations = 0;
   let upperBound = Infinity;
 
-  while (true) {
-    iterations++;
-    const solve = await runModel_(highs, context, {
-      runCosts: parameters.runCosts,
-      utilityFactor: parameters.utilityFactor,
-      utilityPoints: points,
-      linearMinimums: parameters.linearMinimums || [],
-      nonlinearMinimums: parameters.nonlinearMinimums || []
-    }, {
-      ...state,
-      warmAssignments: bestAssignments,
-      onSolution(assignments, bound, solverGap) {
-        const value = parameters.exactValue(assignments);
-        if (value > bestValue + NUMERIC_EPSILON) {
-          bestValue = value;
-          bestAssignments = assignments;
-          state.onExactSolution?.(assignments, value, bound, relativeGap(value, bound) ?? solverGap);
+  const { data, layout } = buildModel_(highs, context, {
+    runCosts: parameters.runCosts,
+    utilityFactor: parameters.utilityFactor,
+    utilityPoints: points,
+    linearMinimums: parameters.linearMinimums || [],
+    nonlinearMinimums: parameters.nonlinearMinimums || []
+  });
+  const model = highs.createModel(data);
+  try {
+    configureModel_(model, state);
+    while (true) {
+      iterations++;
+      const solve = await solveExistingModel_(highs, context, model, layout, {
+        ...state,
+        nodeOffset: totalNodes,
+        warmAssignments: bestAssignments,
+        onSolution(assignments, bound, solverGap) {
+          const value = parameters.exactValue(assignments);
+          if (value > bestValue + NUMERIC_EPSILON) {
+            bestValue = value;
+            bestAssignments = assignments;
+            state.onExactSolution?.(assignments, value, bound, relativeGap(value, bound) ?? solverGap);
+          }
         }
+      });
+      totalNodes += solve.nodes;
+      upperBound = solve.dualBound;
+      const candidateValue = parameters.exactValue(solve.assignments);
+      const candidateTotals = resourceTotalsFromAssignments_(context, solve.assignments);
+      addUniqueResourcePoint_(vectors, candidateTotals);
+      if (candidateValue > bestValue + NUMERIC_EPSILON) {
+        bestValue = candidateValue;
+        bestAssignments = solve.assignments;
+        state.onExactSolution?.(bestAssignments, bestValue, upperBound, relativeGap(bestValue, upperBound));
       }
-    });
-    totalNodes += solve.nodes;
-    upperBound = solve.dualBound;
-    const candidateValue = parameters.exactValue(solve.assignments);
-    if (candidateValue > bestValue + NUMERIC_EPSILON) {
-      bestValue = candidateValue;
-      bestAssignments = solve.assignments;
-      state.onExactSolution?.(bestAssignments, bestValue, upperBound, relativeGap(bestValue, upperBound));
+      const gap = relativeGap(bestValue, upperBound);
+      state.onProgress({ phase: state.phase, determinate: false, completed: 0, total: 1, nodes: totalNodes, upperBound, relativeGap: gap, elapsedMs: performance.now() - state.startedAt });
+      if (solve.optimal && gap != null && gap <= PROOF_RELATIVE_GAP) {
+        return { assignments: bestAssignments, value: bestValue, upperBound, relativeGap: gap, nodes: totalNodes, iterations, optimal: true, points, vectors };
+      }
+      const added = addUniquePoint_(points, candidateTotals);
+      if (added.length === 0) {
+        throw new Error("The logarithmic search stalled before reaching its configured gap.");
+      }
+      added.forEach(([material, point]) => addUtilityTangentRow_(model, highs, context, layout, material, point));
     }
-    const gap = relativeGap(bestValue, upperBound);
-    state.onProgress({ phase: state.phase, completed: 0, total: 1, nodes: totalNodes, upperBound, relativeGap: gap, elapsedMs: performance.now() - state.startedAt });
-    if (solve.optimal && gap != null && gap <= PROOF_RELATIVE_GAP) {
-      return { assignments: bestAssignments, value: bestValue, upperBound, relativeGap: gap, nodes: totalNodes, iterations, optimal: true, points };
-    }
-    const candidateTotals = resourceTotalsFromAssignments_(context, solve.assignments);
-    if (!addUniquePoint_(points, candidateTotals)) {
-      throw new Error("The logarithmic proof search stalled before closing its certified gap.");
-    }
+  } finally {
+    model.dispose();
   }
 }
 
 async function solveLinearWithConcaveMinimum_(highs, context, parameters, state) {
-  const points = [resourceTotalsFromAssignments_(context, state.warmAssignments || [])];
+  const points = [];
+  (parameters.initialPoints || []).forEach(point => addUniqueResourcePoint_(points, point));
+  addUniqueResourcePoint_(points, resourceTotalsFromAssignments_(context, state.warmAssignments || []));
   let totalNodes = 0;
   let iterations = 0;
-  while (true) {
-    iterations++;
-    const minimum = {
-      linearRunCosts: parameters.primaryRunCosts,
-      utilityFactor: parameters.primaryUtilityFactor,
-      value: parameters.minimumValue,
-      points
-    };
-    const solve = await solveLinear_(highs, context, parameters.secondaryRunCosts, {
-      ...state,
-      onSolution(assignments, bound, gap) {
-        if (parameters.primaryExactValue(assignments) + NUMERIC_EPSILON >= parameters.minimumValue) {
-          state.onExactSolution?.(assignments, linearValue_(context, assignments, parameters.secondaryRunCosts), bound, gap);
+
+  const minimum = {
+    linearRunCosts: parameters.primaryRunCosts,
+    utilityFactor: parameters.primaryUtilityFactor,
+    value: parameters.minimumValue,
+    points
+  };
+  const { data, layout } = buildModel_(highs, context, {
+    runCosts: parameters.secondaryRunCosts,
+    utilityFactor: 0,
+    linearMinimums: parameters.linearMinimums || [],
+    nonlinearMinimums: [minimum]
+  });
+  const model = highs.createModel(data);
+  try {
+    configureModel_(model, state);
+    while (true) {
+      iterations++;
+      const solve = await solveExistingModel_(highs, context, model, layout, {
+        ...state,
+        nodeOffset: totalNodes,
+        onSolution(assignments, bound, gap) {
+          if (parameters.primaryExactValue(assignments) + NUMERIC_EPSILON >= parameters.minimumValue) {
+            state.onExactSolution?.(assignments, linearValue_(context, assignments, parameters.secondaryRunCosts), bound, gap);
+          }
         }
+      });
+      if (!solve.optimal) throw new Error("HiGHS stopped before reaching the configured linear optimality tolerance.");
+      totalNodes += solve.nodes;
+      const primaryValue = parameters.primaryExactValue(solve.assignments);
+      if (primaryValue + NUMERIC_EPSILON >= parameters.minimumValue) {
+        return { ...solve, nodes: totalNodes, iterations, optimal: true, points };
       }
-    }, parameters.linearMinimums || [], [minimum]);
-    totalNodes += solve.nodes;
-    const primaryValue = parameters.primaryExactValue(solve.assignments);
-    if (primaryValue + NUMERIC_EPSILON >= parameters.minimumValue) {
-      return { ...solve, nodes: totalNodes, iterations, optimal: solve.optimal };
+      const totals = resourceTotalsFromAssignments_(context, solve.assignments);
+      if (!addUniqueResourcePoint_(points, totals)) {
+        throw new Error("The nonlinear tie-break search stalled before reaching a feasible result.");
+      }
+      addNonlinearMinimumRow_(model, highs, context, layout, minimum, totals);
     }
-    const totals = resourceTotalsFromAssignments_(context, solve.assignments);
-    if (points.some(point => MATS.every(material => Math.abs((point[material] || 0) - totals[material]) <= NUMERIC_EPSILON))) {
-      throw new Error("The nonlinear tie-break proof stalled before finding a feasible optimum.");
-    }
-    points.push(totals);
+  } finally {
+    model.dispose();
   }
 }
 
 function primaryTolerance_(value) {
   return PROOF_RELATIVE_GAP * Math.max(1, Math.abs(value));
+}
+
+function primaryMinimum_(value, upperBound) {
+  if (!Number.isFinite(upperBound)) return value;
+  return Math.min(value, upperBound - primaryTolerance_(upperBound));
 }
 
 function solverStats_(highs, state) {
@@ -588,7 +803,7 @@ export async function optimizeCrazy(rawInput, options = {}) {
     solutionStatus: "best-found",
     upperBound: null,
     relativeGap: null,
-    solverStats: { engine: "CIFI heuristic", version: "3.0.2", nodes: 0, iterations: standard.solverStats?.iterations || 0 },
+    solverStats: { engine: "CIFI heuristic", version: "3.0.1", nodes: 0, iterations: standard.solverStats?.iterations || 0 },
     hybridIdeals: standard.hybridIdeals,
     seed
   });
@@ -611,7 +826,7 @@ export async function optimizeCrazy(rawInput, options = {}) {
     });
   }
 
-  onProgress({ phase: "loading-solver", completed: 0, total: 1, elapsedMs: performance.now() - startedAt });
+  onProgress({ phase: "loading-solver", determinate: false, completed: 0, total: 1, elapsedMs: performance.now() - startedAt });
   const highs = await loadSolver_();
   const aggregate = { nodes: 0, iterations: 0 };
   let hybridIdeals = null;
@@ -646,14 +861,30 @@ export async function optimizeCrazy(rawInput, options = {}) {
     const primaryValue = linearValue_(context, primary.assignments, primaryCosts);
     primaryUpperBound = primary.dualBound;
     primaryGap = relativeGap(primaryValue, primaryUpperBound) || 0;
+    const primaryMinimums = [{ runCosts: primaryCosts, value: primaryMinimum_(primaryValue, primaryUpperBound) }];
     const secondaryKind = kind === "academy" ? "completions" : "fragments";
-    const secondary = await solveLinear_(highs, context, runCosts_(context, secondaryKind), {
+    const secondaryCosts = runCosts_(context, secondaryKind);
+    const secondary = await solveLinear_(highs, context, secondaryCosts, {
       ...commonState("crazy-tiebreak"),
       warmAssignments: primary.assignments,
       onSolution: assignments => checkpoint(assignments, primaryUpperBound, primaryGap)
-    }, [{ runCosts: primaryCosts, value: primaryValue - primaryTolerance_(primaryValue) }]);
+    }, primaryMinimums);
     aggregate.nodes += secondary.nodes; aggregate.iterations++;
-    finalAssignments = secondary.assignments;
+    if (kind === "completions") {
+      const secondaryValue = linearValue_(context, secondary.assignments, secondaryCosts);
+      const tertiary = await solveLinear_(highs, context, primaryCosts, {
+        ...commonState("crazy-utilisation"),
+        warmAssignments: secondary.assignments,
+        onSolution: assignments => checkpoint(assignments, primaryUpperBound, primaryGap)
+      }, [
+        ...primaryMinimums,
+        { runCosts: secondaryCosts, value: primaryMinimum_(secondaryValue, secondary.dualBound) }
+      ]);
+      aggregate.nodes += tertiary.nodes; aggregate.iterations++;
+      finalAssignments = tertiary.assignments;
+    } else {
+      finalAssignments = secondary.assignments;
+    }
   } else if (kind === "fragments") {
     const fragmentCosts = runCosts_(context, "fragments");
     const primary = await solveLinear_(highs, context, fragmentCosts, {
@@ -666,14 +897,26 @@ export async function optimizeCrazy(rawInput, options = {}) {
     primaryGap = relativeGap(fragmentIdeal, primaryUpperBound) || 0;
     const secondary = await solveConcave_(highs, context, {
       runCosts: {}, utilityFactor: 1,
-      linearMinimums: [{ runCosts: fragmentCosts, value: fragmentIdeal - primaryTolerance_(fragmentIdeal) }],
+      linearMinimums: [{ runCosts: fragmentCosts, value: primaryMinimum_(fragmentIdeal, primaryUpperBound) }],
       exactValue: assignments => evaluateFarmAssignments_(context, assignments).summary.resourceUtility
     }, {
       ...commonState("crazy-tiebreak"), warmAssignments: primary.assignments,
       onExactSolution: assignments => checkpoint(assignments, primaryUpperBound, primaryGap)
     });
     aggregate.nodes += secondary.nodes; aggregate.iterations += secondary.iterations;
-    finalAssignments = secondary.assignments;
+    const tertiary = await solveLinearWithConcaveMinimum_(highs, context, {
+      primaryRunCosts: {}, primaryUtilityFactor: 1,
+      primaryExactValue: assignments => evaluateFarmAssignments_(context, assignments).summary.resourceUtility,
+      minimumValue: primaryMinimum_(secondary.value, secondary.upperBound),
+      secondaryRunCosts: runCosts_(context, "completions"),
+      linearMinimums: [{ runCosts: fragmentCosts, value: primaryMinimum_(fragmentIdeal, primaryUpperBound) }],
+      initialPoints: secondary.vectors
+    }, {
+      ...commonState("crazy-utilisation"), warmAssignments: secondary.assignments,
+      onExactSolution: assignments => checkpoint(assignments, primaryUpperBound, primaryGap)
+    });
+    aggregate.nodes += tertiary.nodes; aggregate.iterations += tertiary.iterations;
+    finalAssignments = tertiary.assignments;
   } else if (kind === "resources") {
     const primary = await solveConcave_(highs, context, {
       runCosts: {}, utilityFactor: 1,
@@ -688,14 +931,29 @@ export async function optimizeCrazy(rawInput, options = {}) {
     const secondary = await solveLinearWithConcaveMinimum_(highs, context, {
       primaryRunCosts: {}, primaryUtilityFactor: 1,
       primaryExactValue: assignments => evaluateFarmAssignments_(context, assignments).summary.resourceUtility,
-      minimumValue: primary.value - primaryTolerance_(primary.value),
-      secondaryRunCosts: runCosts_(context, "fragments")
+      minimumValue: primaryMinimum_(primary.value, primaryUpperBound),
+      secondaryRunCosts: runCosts_(context, "fragments"),
+      initialPoints: primary.vectors
     }, {
       ...commonState("crazy-tiebreak"), warmAssignments: primary.assignments,
       onExactSolution: assignments => checkpoint(assignments, primaryUpperBound, primaryGap)
     });
     aggregate.nodes += secondary.nodes; aggregate.iterations += secondary.iterations;
-    finalAssignments = secondary.assignments;
+    const fragmentCosts = runCosts_(context, "fragments");
+    const secondaryValue = linearValue_(context, secondary.assignments, fragmentCosts);
+    const tertiary = await solveLinearWithConcaveMinimum_(highs, context, {
+      primaryRunCosts: {}, primaryUtilityFactor: 1,
+      primaryExactValue: assignments => evaluateFarmAssignments_(context, assignments).summary.resourceUtility,
+      minimumValue: primaryMinimum_(primary.value, primaryUpperBound),
+      secondaryRunCosts: runCosts_(context, "completions"),
+      linearMinimums: [{ runCosts: fragmentCosts, value: primaryMinimum_(secondaryValue, secondary.dualBound) }],
+      initialPoints: [...primary.vectors, ...secondary.points]
+    }, {
+      ...commonState("crazy-utilisation"), warmAssignments: secondary.assignments,
+      onExactSolution: assignments => checkpoint(assignments, primaryUpperBound, primaryGap)
+    });
+    aggregate.nodes += tertiary.nodes; aggregate.iterations += tertiary.iterations;
+    finalAssignments = tertiary.assignments;
   } else {
     const fragmentCosts = runCosts_(context, "fragments");
     const fragmentIdealSolve = await solveLinear_(highs, context, fragmentCosts, commonState("crazy-fragment-ideal"));
@@ -746,8 +1004,9 @@ export async function optimizeCrazy(rawInput, options = {}) {
           primaryRunCosts: hybridRunCosts,
           primaryUtilityFactor: utilityFactor,
           primaryExactValue: exactHybrid,
-          minimumValue: primaryValue - primaryTolerance_(primaryValue),
-          secondaryRunCosts: runCosts_(context, "completions")
+          minimumValue: primaryMinimum_(primaryValue, primaryUpperBound),
+          secondaryRunCosts: runCosts_(context, "completions"),
+          initialPoints: primary.vectors
         }, {
           ...commonState("crazy-tiebreak"), warmAssignments: primary.assignments,
           onExactSolution: assignments => checkpoint(assignments, primaryUpperBound, primaryGap)
@@ -757,7 +1016,7 @@ export async function optimizeCrazy(rawInput, options = {}) {
       } else {
         const secondary = await solveLinear_(highs, context, runCosts_(context, "completions"), {
           ...commonState("crazy-tiebreak"), warmAssignments: primary.assignments
-        }, [{ runCosts: hybridRunCosts, value: primaryValue - primaryTolerance_(primaryValue) }]);
+        }, [{ runCosts: hybridRunCosts, value: primaryMinimum_(primaryValue, primaryUpperBound) }]);
         aggregate.nodes += secondary.nodes; aggregate.iterations++;
         finalAssignments = secondary.assignments;
       }
@@ -768,15 +1027,22 @@ export async function optimizeCrazy(rawInput, options = {}) {
   const finalPrimary = describeObjective(input.mode, finalSummary, hybridIdeals).primaryValue;
   primaryGap = relativeGap(finalPrimary, primaryUpperBound) ?? primaryGap;
   const result = finalizeResult_(context, finalAssignments, {
-    solutionStatus: "optimal",
+    solutionStatus: "tolerance-met",
     upperBound: primaryUpperBound,
     relativeGap: primaryGap,
     solverStats: solverStats_(highs, aggregate),
     hybridIdeals,
     seed
   });
-  onProgress({ phase: "complete", completed: 1, total: 1, nodes: aggregate.nodes, upperBound: primaryUpperBound, relativeGap: primaryGap, elapsedMs: performance.now() - startedAt });
+  onProgress({ phase: "complete", determinate: true, completed: 1, total: 1, nodes: aggregate.nodes, upperBound: primaryUpperBound, relativeGap: primaryGap, elapsedMs: performance.now() - startedAt });
   return result;
 }
 
-export { buildContext_ as buildCrazyContextForTest, evaluateFarmAssignments_ as evaluateCrazyAssignmentsForTest };
+export {
+  buildContext_ as buildCrazyContextForTest,
+  evaluateFarmAssignments_ as evaluateCrazyAssignmentsForTest,
+  maxResourceTotals_ as maxResourceTotalsForTest,
+  missionRunUpperBound_ as missionRunUpperBoundForTest,
+  rebalanceFarmAssignments_ as rebalanceCrazyAssignmentsForTest,
+  workerMissionUpperBound_ as workerMissionUpperBoundForTest
+};

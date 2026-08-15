@@ -1,5 +1,5 @@
-import { optimize, OptimizerValidationError } from "./optimizer.js?v=3.0.2";
-import { optimizeCrazy } from "./crazy-optimizer.js?v=3.0.2";
+import { optimize, OptimizerValidationError } from "./optimizer.js?v=3.0.1";
+import { optimizeCrazy } from "./crazy-optimizer.js?v=3.0.1";
 
 self.addEventListener("message", async event => {
   const { type, requestId, input } = event.data || {};
@@ -34,7 +34,7 @@ self.addEventListener("message", async event => {
           ...latestCheckpoint,
           solutionStatus: "best-found",
           durationMs: performance.now() - startedAt,
-          notices: [...(latestCheckpoint.notices || []), `Crazy solver stopped before proof: ${error?.message || "Unknown solver error."}`]
+          notices: [...(latestCheckpoint.notices || []), `Overkill stopped before reaching its target: ${error?.message || "Unknown solver error."}`]
         }
       });
       return;

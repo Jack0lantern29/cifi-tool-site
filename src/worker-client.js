@@ -79,7 +79,7 @@ export class OptimizerWorkerClient {
     this.worker?.terminate();
     this.worker = null;
     if (latestCheckpoint) {
-      const notice = "Crazy Optimisation was cancelled; this is the best complete allocation found before cancellation.";
+      const notice = "Overkill was cancelled; this is the best complete allocation found before cancellation.";
       resolve({
         ...latestCheckpoint,
         solutionStatus: "cancelled-best",

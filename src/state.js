@@ -1,5 +1,5 @@
-import { ALL_FARM_MISSIONS, MATS, TYPE_ORDER } from "./data.js?v=3.0.2";
-import { createDefaultInput, validateInput } from "./validation.js?v=3.0.2";
+import { ALL_FARM_MISSIONS, MATS, TYPE_ORDER } from "./data.js?v=3.0.1";
+import { createDefaultInput, validateInput } from "./validation.js?v=3.0.1";
 
 export const STATE_SCHEMA_VERSION = 3;
 export const STORAGE_KEY_V3 = "cifi-farm-mission-optimizer-state-v3";

@@ -2,19 +2,20 @@ import {
   ALL_FARM_MISSIONS,
   MATS,
   TYPE_ORDER
-} from "./src/data.js?v=3.0.2";
-import { canonicalStringify } from "./src/random.js?v=3.0.2";
-import { clearState, loadState, saveState } from "./src/state.js?v=3.0.2";
-import { OptimizerCancelledError, OptimizerWorkerClient } from "./src/worker-client.js?v=3.0.2";
+} from "./src/data.js?v=3.0.1";
+import { canonicalStringify } from "./src/random.js?v=3.0.1";
+import { buildProgressView, formatDuration } from "./src/progress.js?v=3.0.1";
+import { clearState, loadState, saveState } from "./src/state.js?v=3.0.1";
+import { OptimizerCancelledError, OptimizerWorkerClient } from "./src/worker-client.js?v=3.0.1";
 import {
   createDefaultInput,
   getAvailableModes,
   getVisibleCampaignNames,
   getVisibleFarmNames,
   validateInput
-} from "./src/validation.js?v=3.0.2";
+} from "./src/validation.js?v=3.0.1";
 
-const APP_VERSION = "3.0.2";
+const APP_VERSION = "3.0.1";
 const elements = new Map();
 const byId = id => {
   if (!elements.has(id)) elements.set(id, document.getElementById(id));
@@ -32,9 +33,12 @@ let selectedFarmMissions = new Set();
 let selectedCampaignFarmMissions = new Set();
 let saveTimer = null;
 let suppressNextCancellationStatus = false;
+let progressTimer = null;
+let progressStartedAt = null;
+let latestProgress = null;
 const workerClient = new OptimizerWorkerClient(() => {
   if (!window.Worker) throw new Error("This browser does not support background optimisation.");
-  return new Worker(new URL("./src/worker.js?v=3.0.2", import.meta.url), { type: "module" });
+  return new Worker(new URL("./src/worker.js?v=3.0.1", import.meta.url), { type: "module" });
 });
 
 function setTab(button, focus = false) {
@@ -297,35 +301,66 @@ function setRunning(running) {
   byId("runOptimizerBtn").disabled = running;
   byId("resetInputsBtn").disabled = running;
   byId("cancelOptimizerBtn").classList.toggle("hidden", !running);
-  byId("optimizerProgress").classList.toggle("hidden", !running);
+  byId("runProgressPanel").classList.toggle("hidden", !running);
 }
 
 function setStatus(text) {
   byId("statusText").textContent = text;
 }
 
+function renderProgress(updateStatus = false) {
+  if (!latestProgress || progressStartedAt == null) return;
+  const view = buildProgressView(latestProgress);
+  const phaseElement = byId("runProgressPhase");
+  if (phaseElement.textContent !== view.phaseLabel) phaseElement.textContent = view.phaseLabel;
+  if (updateStatus) setStatus(view.phaseLabel);
+
+  byId("runProgressElapsed").textContent = `Elapsed ${formatDuration(performance.now() - progressStartedAt)}`;
+  const progressElement = byId("optimizerProgress");
+  if (view.determinate) {
+    progressElement.max = view.total;
+    progressElement.value = view.completed;
+    const percent = Math.round(view.completed / view.total * 100);
+    progressElement.textContent = `${percent}%`;
+    progressElement.setAttribute("aria-valuetext", `${percent}% of current phase`);
+  } else {
+    progressElement.removeAttribute("value");
+    progressElement.textContent = "In progress";
+    progressElement.setAttribute("aria-valuetext", "Working; completion time is unknown");
+  }
+
+  const telemetry = [];
+  if (view.gapText != null) telemetry.push(`Optimality gap ${view.gapText}`);
+  if (view.nodeText != null) telemetry.push(`Nodes searched ${view.nodeText}`);
+  if (telemetry.length === 0 && view.determinate) {
+    telemetry.push(`${Math.round(view.completed / view.total * 100)}% of current phase`);
+  }
+  byId("runProgressTelemetry").textContent = telemetry.join(" · ") || "Waiting for solver telemetry…";
+}
+
 function updateProgress(progress) {
-  const basePhase = String(progress.phase || "").replace(/^standard-/, "");
-  const labels = {
-    preparing: "Preparing…",
-    "estimating-ideals": "Estimating hybrid ideals…",
-    optimising: "Optimising farms…",
-    polishing: "Polishing allocation…",
-    campaign: "Assigning campaign remainder…",
-    "loading-solver": "Loading Crazy solver…",
-    "crazy-fragment-ideal": "Proving fragment ideal…",
-    "crazy-resource-ideal": "Proving resource ideal…",
-    "crazy-primary": "Crazy search — proving primary objective…",
-    "crazy-tiebreak": "Crazy search — proving tie-break…",
-    complete: "Completing…"
-  };
-  setStatus(labels[progress.phase] || labels[basePhase] || "Optimising…");
-  const total = Math.max(1, progress.total || 1);
-  byId("optimizerProgress").max = total;
-  byId("optimizerProgress").value = Math.min(total, progress.completed || 0);
+  latestProgress = { ...progress };
+  renderProgress(true);
+}
+
+function stopProgress() {
+  if (progressTimer != null) window.clearInterval(progressTimer);
+  progressTimer = null;
+  progressStartedAt = null;
+  latestProgress = null;
+  setRunning(false);
+}
+
+function startProgress() {
+  stopProgress();
+  progressStartedAt = performance.now();
+  setRunning(true);
+  updateProgress({ phase: "preparing", determinate: true, completed: 0, total: 1 });
+  progressTimer = window.setInterval(() => renderProgress(false), 1000);
 }
 
 async function runOptimizer() {
+  stopProgress();
   clearValidation();
   showNotice("");
   const { input, errors } = validateInput(readFormInput());
@@ -336,21 +371,20 @@ async function runOptimizer() {
   }
   persistInput(input);
   try {
-    setRunning(true);
-    setStatus("Preparing…");
-    byId("optimizerProgress").value = 0;
+    startProgress();
     const result = await workerClient.run(input, { onProgress: updateProgress });
     if (suppressNextCancellationStatus) {
       suppressNextCancellationStatus = false;
-      setRunning(false);
+      stopProgress();
       return;
     }
-    setRunning(false);
+    stopProgress();
     renderResult(result);
-    setStatus(result.solutionStatus === "cancelled-best" ? "Cancelled — best found" : "Completed");
+    const completionStatus = result.solutionStatus === "cancelled-best" ? "Cancelled — best found" : "Completed";
+    setStatus(completionStatus);
     byId("output").scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (error) {
-    setRunning(false);
+    stopProgress();
     if (error instanceof OptimizerCancelledError) {
       if (suppressNextCancellationStatus) suppressNextCancellationStatus = false;
       else setStatus("Cancelled");
@@ -363,7 +397,9 @@ async function runOptimizer() {
 }
 
 function cancelOptimizer() {
+  if (!workerClient.isRunning) return;
   setStatus("Cancelling…");
+  updateProgress({ ...(latestProgress || {}), phase: "cancelling", determinate: false });
   workerClient.cancel();
 }
 
@@ -408,7 +444,7 @@ function formatSelectedFarms(names) {
 function renderResult(result) {
   byId("campaignEtaText").textContent = formatNumber(result.campaignETA, 3);
   byId("modeUsedText").textContent = result.modeUsed;
-  byId("elapsedText").textContent = `${formatNumber(result.durationMs, 0)} ms`;
+  byId("elapsedText").textContent = formatDuration(result.durationMs);
   byId("selectedFarmCountText").textContent = `${result.selectedFarmCount} ${result.selectedFarmCount === 1 ? "farm" : "farms"}`;
   byId("selectedFarmNamesText").textContent = formatSelectedFarms(result.selectedFarmNames);
 
@@ -436,6 +472,7 @@ function renderResult(result) {
 }
 
 function clearOutput() {
+  stopProgress();
   ["campaignEtaText", "modeUsedText", "elapsedText", "selectedFarmCountText", "selectedFarmNamesText"].forEach(id => { byId(id).textContent = "—"; });
   byId("distributionBody").innerHTML = '<tr><td colspan="5">Run the optimizer to populate mission distribution.</td></tr>';
   byId("totalsBody").innerHTML = '<tr><td colspan="2">Run the optimizer to populate totals.</td></tr>';

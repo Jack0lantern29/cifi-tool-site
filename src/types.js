@@ -18,6 +18,7 @@
  * }} OptimizerInput
  * @typedef {{ name: string, type: string, count: number }} Assignment
  * @typedef {{ field: string, message: string }} ValidationError
+ * @typedef {{ phase: string, determinate: boolean, completed: number, total: number, elapsedMs?: number, nodes?: number, upperBound?: number, relativeGap?: number }} OptimizerProgress
  * @typedef {{
  *   assignments: Assignment[],
  *   unassignedWorkers: Record<string, number>,
@@ -30,7 +31,7 @@
  *   globalSpeedMult: number,
  *   modeUsed: string,
  *   searchEffort: "standard"|"crazy",
- *   solutionStatus: "best-found"|"optimal"|"cancelled-best",
+ *   solutionStatus: "best-found"|"optimal"|"tolerance-met"|"cancelled-best",
  *   objective: { primaryName: string, primaryValue: number, secondaryName: string, secondaryValue: number, upperBound: number|null, relativeGap: number|null },
  *   solverStats: { engine: string, version: string, nodes: number, iterations: number },
  *   hybridIdeals: { fragments: number, resourceUtility: number, fragmentWeight: number, resourceWeight: number, proven: boolean }|null,

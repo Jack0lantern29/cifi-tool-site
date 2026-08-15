@@ -1,7 +1,8 @@
-import { MATS } from "./data.js?v=3.0.2";
+import { MATS } from "./data.js?v=3.0.1";
 
 export const OBJECTIVE_EPSILON = 1e-9;
-export const PROOF_RELATIVE_GAP = 1e-8;
+// Overkill stops once the incumbent is certified within 0.0001% of the best bound.
+export const PROOF_RELATIVE_GAP = 1e-6;
 
 export function getModeKind(mode) {
   const normalized = String(mode || "").trim().toLowerCase();
