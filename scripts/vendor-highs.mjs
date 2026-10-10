@@ -1,5 +1,6 @@
 import { copyFile, mkdir } from "node:fs/promises";
 
+// Copy the installed solver and its licence into the site's vendor folder.
 await mkdir(new URL("../vendor/highs/", import.meta.url), { recursive: true });
 await Promise.all([
   ["../node_modules/highs/build/highs.mjs", "../vendor/highs/highs.mjs"],

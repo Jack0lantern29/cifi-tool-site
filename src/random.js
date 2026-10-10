@@ -1,4 +1,4 @@
-/** Canonical JSON with stable object-key and Set ordering. */
+/** Write settings in a consistent order so equivalent inputs match. */
 export function canonicalStringify(value) {
   if (value instanceof Set) return canonicalStringify(Array.from(value).sort());
   if (Array.isArray(value)) return `[${value.map(canonicalStringify).join(",")}]`;
@@ -9,7 +9,7 @@ export function canonicalStringify(value) {
   return JSON.stringify(value);
 }
 
-/** FNV-1a 32-bit hash used as a stable optimiser seed and run identifier. */
+/** Turn settings into a repeatable starting seed and run ID. */
 export function deriveSeed(value) {
   const text = canonicalStringify(value);
   let hash = 0x811c9dc5;
@@ -20,9 +20,10 @@ export function deriveSeed(value) {
   return hash >>> 0;
 }
 
-/** Mulberry32 deterministic pseudo-random generator. */
+/** Create a random sequence that repeats for the same seed. */
 export function createSeededRandom(seed) {
   let state = seed >>> 0;
+  // Return the next number in this run's random sequence.
   return function random() {
     state = (state + 0x6d2b79f5) | 0;
     let value = state;
@@ -32,6 +33,7 @@ export function createSeededRandom(seed) {
   };
 }
 
+// Turn the run's seed into a short readable ID.
 export function formatRunId(seed) {
   return `RUN-${(seed >>> 0).toString(16).padStart(8, "0").toUpperCase()}`;
 }

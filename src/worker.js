@@ -1,6 +1,7 @@
-import { optimize, OptimizerValidationError } from "./optimizer.js?v=3.0.1";
-import { optimizeCrazy } from "./crazy-optimizer.js?v=3.0.1";
+import { optimize, OptimizerValidationError } from "./optimizer.js?v=3.0.2";
+import { optimizeCrazy } from "./crazy-optimizer.js?v=3.0.2";
 
+// Run search requests and send progress, results, or errors back to the page.
 self.addEventListener("message", async event => {
   const { type, requestId, input } = event.data || {};
   if (type !== "optimize" || !requestId) return;
@@ -9,9 +10,11 @@ self.addEventListener("message", async event => {
   let latestCheckpoint = null;
   try {
     const callbacks = {
+      // Send the latest search progress to the page.
       onProgress(progress) {
         self.postMessage({ type: "progress", requestId, progress });
       },
+      // Keep and send a complete allocation in case the search stops.
       onCheckpoint(result) {
         latestCheckpoint = result;
         self.postMessage({ type: "checkpoint", requestId, result: { ...result, durationMs: performance.now() - startedAt } });

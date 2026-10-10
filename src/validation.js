@@ -7,12 +7,13 @@ import {
   OURO_OFF_VISIBLE_FARMS,
   OURO_REQUIRED_MODE_OPTIONS,
   TYPE_ORDER
-} from "./data.js?v=3.0.1";
+} from "./data.js?v=3.0.2";
 
 const DEFAULT_MODE = "Maximising Resources";
 const DEFAULT_CAMPAIGN = "C4-11";
 export const SEARCH_EFFORTS = Object.freeze(["standard", "crazy"]);
 
+// Create the starting settings for a new or reset session.
 export function createDefaultInput() {
   return {
     ouroUnlocked: false,
@@ -40,28 +41,34 @@ export function createDefaultInput() {
   };
 }
 
+// List farms available with the current Ouroboros unlock.
 export function getVisibleFarmNames(ouroUnlocked) {
   return ALL_FARM_MISSIONS.filter(name => ouroUnlocked || OURO_OFF_VISIBLE_FARMS.has(name));
 }
 
+// List campaigns available with the current Ouroboros unlock.
 export function getVisibleCampaignNames(ouroUnlocked) {
   return ALL_CAMPAIGN_MISSIONS.filter(name => ouroUnlocked || OURO_OFF_VISIBLE_CAMPAIGNS.has(name));
 }
 
+// List the optimisation modes currently available.
 export function getAvailableModes(ouroUnlocked) {
   return ALL_MODE_OPTIONS.filter(mode => ouroUnlocked || !OURO_REQUIRED_MODE_OPTIONS.has(mode));
 }
 
+// Read a numeric input, treating an empty field as zero.
 function parseNumber(value) {
   if (value === "" || value == null) return 0;
   return typeof value === "number" ? value : Number(value);
 }
 
+// Remove duplicate and unknown selections.
 function uniqueKnown(values, known) {
   const allowed = new Set(known);
   return Array.from(new Set(Array.isArray(values) ? values : [])).filter(value => allowed.has(value));
 }
 
+// Record any number that breaks the field's allowed limits.
 function checkNumber(errors, field, value, { integer = false, max = Infinity } = {}) {
   if (!Number.isFinite(value)) {
     errors.push({ field, message: "Enter a finite number." });
@@ -73,7 +80,7 @@ function checkNumber(errors, field, value, { integer = false, max = Infinity } =
 }
 
 /**
- * Validate untrusted UI or saved-state input and return the canonical optimiser input.
+ * Check settings and return cleaned inputs with any problems found.
  * @param {unknown} raw
  * @returns {{ input: import('./types.js').OptimizerInput, errors: import('./types.js').ValidationError[] }}
  */
@@ -163,6 +170,7 @@ export function validateInput(raw) {
   };
 }
 
+// Combine all active bonuses into the overall mission speed.
 export function calculateGlobalSpeedMultiplier(input) {
   const { modifiers, ouroUnlocked } = input;
   let multiplier = modifiers.engineeringBadge ? 2 : 1;

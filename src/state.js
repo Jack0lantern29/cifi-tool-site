@@ -1,15 +1,17 @@
-import { ALL_FARM_MISSIONS, MATS, TYPE_ORDER } from "./data.js?v=3.0.1";
-import { createDefaultInput, validateInput } from "./validation.js?v=3.0.1";
+import { ALL_FARM_MISSIONS, MATS, TYPE_ORDER } from "./data.js?v=3.0.2";
+import { createDefaultInput, validateInput } from "./validation.js?v=3.0.2";
 
 export const STATE_SCHEMA_VERSION = 3;
 export const STORAGE_KEY_V3 = "cifi-farm-mission-optimizer-state-v3";
 export const STORAGE_KEY_V2 = "cifi-farm-mission-optimizer-state-v2";
 export const LEGACY_STORAGE_KEY = "cifi-farm-mission-optimizer-state-v1";
 
+// Turn a personnel name into its saved field key.
 function typeKey(type) {
   return String(type).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 }
 
+// Clean a saved number and keep it within allowed limits.
 function safeNumber(value, { integer = false, max = Infinity } = {}) {
   const parsed = value === "" || value == null ? 0 : Number(value);
   if (!Number.isFinite(parsed) || parsed < 0) return 0;
@@ -17,6 +19,7 @@ function safeNumber(value, { integer = false, max = Infinity } = {}) {
   return Math.min(normalized, max);
 }
 
+// Read a saved percentage, or use the default if it is invalid.
 function safePercentage(value, fallback) {
   if (value === "" || value == null) return fallback;
   const parsed = Number(value);
@@ -24,11 +27,13 @@ function safePercentage(value, fallback) {
   return Math.round(parsed);
 }
 
+// Recover mission selections from the older save format.
 function selectedFromMap(selection, fallback) {
   if (!selection || typeof selection !== "object") return [...fallback];
   return fallback.filter(name => selection[name] !== false);
 }
 
+// Convert old saved settings into the current format.
 export function migrateLegacyState(legacy) {
   const defaults = createDefaultInput();
   const values = legacy?.values && typeof legacy.values === "object" ? legacy.values : {};
@@ -70,6 +75,7 @@ export function migrateLegacyState(legacy) {
   });
 }
 
+// Clean saved settings before using them in the optimiser.
 export function sanitizePersistedInput(raw) {
   const defaults = createDefaultInput();
   const source = raw && typeof raw === "object" ? raw : {};
@@ -103,20 +109,24 @@ export function sanitizePersistedInput(raw) {
   return validateInput(candidate).input;
 }
 
+// Package cleaned settings with their format version and save time.
 export function createSavedState(input, now = new Date()) {
   return { schemaVersion: STATE_SCHEMA_VERSION, savedAt: now.toISOString(), input: sanitizePersistedInput(input) };
 }
 
+// Store the current settings in this browser.
 export function saveState(input, storage = window.localStorage) {
   storage.setItem(STORAGE_KEY_V3, JSON.stringify(createSavedState(input)));
 }
 
+// Remove this app's saved settings, including older formats.
 export function clearState(storage = window.localStorage) {
   storage.removeItem(STORAGE_KEY_V3);
   storage.removeItem(STORAGE_KEY_V2);
   storage.removeItem(LEGACY_STORAGE_KEY);
 }
 
+// Load saved settings, upgrade old formats, or fall back to defaults.
 export function loadState(storage = window.localStorage) {
   try {
     const currentRaw = storage.getItem(STORAGE_KEY_V3);

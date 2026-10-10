@@ -8,16 +8,16 @@ import {
   OURO_OFF_VISIBLE_FARMS,
   TYPE_ORDER,
   TYPE_RANK
-} from "./data.js?v=3.0.1";
-import { createSeededRandom, deriveSeed, formatRunId } from "./random.js?v=3.0.1";
+} from "./data.js?v=3.0.2";
+import { createSeededRandom, deriveSeed, formatRunId } from "./random.js?v=3.0.2";
 import {
   compareSummaries,
   describeObjective,
   getModeKind,
   normalizedHybridScore,
   summaryFromTotals
-} from "./objective.js?v=3.0.1";
-import { calculateGlobalSpeedMultiplier, validateInput } from "./validation.js?v=3.0.1";
+} from "./objective.js?v=3.0.2";
+import { calculateGlobalSpeedMultiplier, validateInput } from "./validation.js?v=3.0.2";
 
 const MIN_DURATION_MINS = 2 / 60;
 const EPS = 1e-9;
@@ -37,14 +37,17 @@ const SA_MIN_TEMP = 0.001;
 const SA_MAX_ITERATIONS = 2000;
 const SA_SWAP_PROBABILITY = 0.35;
 
+// Copy personnel counts and powers before trying changes.
 function cloneWorkers_(workers) {
   return Object.fromEntries(TYPE_ORDER.map(type => [type, { ...workers[type] }]));
 }
 
+// Copy the personnel breakdown for every mission.
 function cloneMissionWorkerCounts_(counts) {
   return Object.fromEntries(Object.entries(counts).map(([name, values]) => [name, { ...values }]));
 }
 
+// Calculate the campaign capacity bonus from Relic 11.
 function getCampaignRelic11Multiplier_(ui) {
   if (!ui.ouroUnlocked) return 1;
 
@@ -52,6 +55,7 @@ function getCampaignRelic11Multiplier_(ui) {
   return 1 + (relicLevel * 0.5);
 }
 
+// Apply the relic bonus to a campaign's personnel limit.
 function getEffectiveCampaignCap_(missionName, ui) {
   const baseCap = CAMPAIGN_BASE_CAPS[missionName];
   if (baseCap == null) return null;
@@ -59,6 +63,7 @@ function getEffectiveCampaignCap_(missionName, ui) {
   return Math.round(baseCap * getCampaignRelic11Multiplier_(ui));
 }
 
+// Prepare unlocked, selected farms and the chosen campaign target.
 function buildMissionPool_(ui) {
   let campaignMission = null;
   const missions = [];
@@ -75,8 +80,7 @@ function buildMissionPool_(ui) {
       return;
     }
 
-    // Farm optimisation is intentionally isolated from campaign missions. Only the
-    // selected target is retained so it can receive the final farm remainder.
+    // Keep only the chosen campaign; it will receive leftover personnel.
     if (isCampaignRow && (!ui.campaignEnabled || row.name !== ui.campaignTargetName)) {
       return;
     }
@@ -127,6 +131,7 @@ function buildMissionPool_(ui) {
   return { missions, campaignMission };
 }
 
+// Try several farm allocations, improve them, and assign campaign leftovers.
 function solveOptimizer_(ui, missions, campaignMission, rng, onProgress) {
   const modeNorm = ui.modeNorm;
 
@@ -160,6 +165,7 @@ function solveOptimizer_(ui, missions, campaignMission, rng, onProgress) {
   missions.forEach(m => missionWorkerCounts[m.name] = {});
   const farmMissionPool = missions.filter(mission => !mission.isCampaign);
 
+  // Calculate hourly mission runs, respecting the two-second minimum.
   function missionRunsPerHour(baseMins, totalPower) {
     if (!totalPower || totalPower <= 0) return 0;
     const rawMinutes = baseMins / (globalSpeedMult * totalPower);
@@ -167,6 +173,7 @@ function solveOptimizer_(ui, missions, campaignMission, rng, onProgress) {
     return 60.0 / actualMinutes;
   }
 
+  // Estimate how many hours the campaign mission will take.
   function campaignETAHours(mission, totalPower) {
     if (!mission || !totalPower || totalPower <= 0) return Infinity;
     const rawMinutes = mission.baseMins / (globalSpeedMult * totalPower);
@@ -174,15 +181,18 @@ function solveOptimizer_(ui, missions, campaignMission, rng, onProgress) {
     return actualMinutes / 60.0;
   }
 
+  // Estimate campaign time using its currently assigned personnel.
   function currentCampaignETA() {
     if (!campaignMission) return Infinity;
     return campaignETAHours(campaignMission, campaignMission.currentPower);
   }
 
+  // Create a lookup key for one mission and personnel type.
   function assignmentKey_(missionName, workerType) {
     return missionName + "|" + workerType;
   }
 
+  // Update an assignment count and remove empty entries.
   function addAssignment(missionName, workerType, deltaCount) {
     const key = assignmentKey_(missionName, workerType);
     const oldVal = assignmentMap[key] || 0;
@@ -191,6 +201,7 @@ function solveOptimizer_(ui, missions, campaignMission, rng, onProgress) {
     else delete assignmentMap[key];
   }
 
+  // Convert assignment counts into the result's list format.
   function getAssignmentsArray_() {
     const out = [];
     Object.keys(assignmentMap).forEach(key => {
@@ -202,6 +213,7 @@ function solveOptimizer_(ui, missions, campaignMission, rng, onProgress) {
     return out;
   }
 
+  // Add one worker and update the mission's power and run rate.
   function addWorkerToMission(mission, type) {
     const power = workerPowers[type];
     mission.assignedUnits++;
@@ -212,6 +224,7 @@ function solveOptimizer_(ui, missions, campaignMission, rng, onProgress) {
     missionWorkerCounts[mission.name][type] = (missionWorkerCounts[mission.name][type] || 0) + 1;
   }
 
+  // Remove one worker and update the mission's power and run rate.
   function removeWorkerFromMission(mission, type) {
     const power = workerPowers[type];
     mission.assignedUnits--;
@@ -226,10 +239,12 @@ function solveOptimizer_(ui, missions, campaignMission, rng, onProgress) {
     if (missionWorkerCounts[mission.name][type] <= 0) delete missionWorkerCounts[mission.name][type];
   }
 
+  // Add the base fragments and this mission's fragment bonus.
   function getFragmentYieldPerCompletion_(mission) {
     return fragmentsPerCompletion + (mission.baseFragments || 0);
   }
 
+  // Add the rewards gained from extra mission runs.
   function addFarmContributionToTotals(mission, deltaRuns) {
     totals.Completions += deltaRuns * ts07Mult;
     totals.Academy += deltaRuns * ts07Mult * mission.baseAcademy;
@@ -239,6 +254,7 @@ function solveOptimizer_(ui, missions, campaignMission, rng, onProgress) {
     });
   }
 
+  // Subtract rewards lost when a mission's run rate falls.
   function removeFarmContributionFromTotals(mission, deltaRunsLoss) {
     totals.Completions -= deltaRunsLoss * ts07Mult;
     totals.Academy -= deltaRunsLoss * ts07Mult * mission.baseAcademy;
@@ -252,6 +268,7 @@ function solveOptimizer_(ui, missions, campaignMission, rng, onProgress) {
     if (totals.Fragments < 0 && Math.abs(totals.Fragments) < 1e-7) totals.Fragments = 0;
   }
 
+  // Calculate the current resource score using the selected priorities.
   function currentUtility() {
     let u = 0;
     MATS.forEach(mat => {
@@ -261,6 +278,7 @@ function solveOptimizer_(ui, missions, campaignMission, rng, onProgress) {
     return u;
   }
 
+  // Measure the resource-score gain from extra mission runs.
   function getResourceUtilityAdd_(mission, deltaRuns) {
     let deltaU = 0;
     let useful = false;
@@ -274,6 +292,7 @@ function solveOptimizer_(ui, missions, campaignMission, rng, onProgress) {
     return useful ? deltaU : 0;
   }
 
+  // Measure the resource-score loss from fewer mission runs.
   function getResourceUtilityLoss_(mission, deltaRunsLoss) {
     let deltaLoss = 0;
     MATS.forEach(mat => {
@@ -287,6 +306,7 @@ function solveOptimizer_(ui, missions, campaignMission, rng, onProgress) {
     return deltaLoss;
   }
 
+  // Estimate what adding one worker would gain for the selected mode.
   function getFarmAddMetrics(mission, type) {
     if (!mission || mission.isCampaign) return null;
     if (mission.assignedUnits >= mission.cap) return null;
@@ -326,6 +346,7 @@ function solveOptimizer_(ui, missions, campaignMission, rng, onProgress) {
     return { deltaRuns, baseRaw, fragmentRaw, resourceRaw };
   }
 
+  // Estimate what removing one worker would lose for the selected mode.
   function getFarmRemoveMetrics(mission, type) {
     if (!mission || mission.isCampaign) return null;
     const cnt = missionWorkerCounts[mission.name][type] || 0;
@@ -366,12 +387,10 @@ function solveOptimizer_(ui, missions, campaignMission, rng, onProgress) {
     return { deltaRunsLoss, baseLossRaw, fragmentLossRaw, resourceLossRaw };
   }
 
+  // Fill campaign slots with the strongest personnel left after farming.
   function assignRemainingWorkersToCampaign_() {
     if (!ui.campaignEnabled || !campaignMission) return;
 
-    // Campaign receives only the personnel left after the farm solution has
-    // been finalised, with the strongest available personnel taking its
-    // limited slots first to minimise campaign ETA.
     const campaignTypeOrder = [...TYPE_ORDER].sort((a, b) =>
       (workerPowers[b] || 0) - (workerPowers[a] || 0) || TYPE_RANK[a] - TYPE_RANK[b]);
     for (let ti = 0; ti < campaignTypeOrder.length; ti++) {
@@ -394,14 +413,17 @@ function solveOptimizer_(ui, missions, campaignMission, rng, onProgress) {
     }
   }
 
+  // Summarise the current rewards for comparing allocations.
   function getSolutionSummary_() {
     return summaryFromTotals(totals, weights);
   }
 
+  // Check whether a candidate is better for the selected mode.
   function isSummaryBetter_(cand, incumbent) {
     return compareSummaries(ui.modeRaw, cand, incumbent, hybridIdeals) > 0;
   }
 
+  // Save the current allocation so trial changes can be undone.
   function snapshotState_() {
     return {
       assignmentMap: Object.assign({}, assignmentMap),
@@ -419,6 +441,7 @@ function solveOptimizer_(ui, missions, campaignMission, rng, onProgress) {
     };
   }
 
+  // Restore a previously saved allocation and its totals.
   function restoreState_(snap) {
     assignmentMap = Object.assign({}, snap.assignmentMap);
     totals = Object.assign({}, snap.totals);
@@ -434,6 +457,7 @@ function solveOptimizer_(ui, missions, campaignMission, rng, onProgress) {
     });
   }
 
+  // Quickly estimate the fragment gain from adding one worker.
   function roughFragmentScore_(mission, type) {
     const power = workerPowers[type];
     if (!power || mission.isCampaign || mission.assignedUnits >= mission.cap) return -1;
@@ -444,6 +468,7 @@ function solveOptimizer_(ui, missions, campaignMission, rng, onProgress) {
     return deltaRuns * getFragmentYieldPerCompletion_(mission);
   }
 
+  // Quickly estimate the weighted resource gain from adding one worker.
   function roughResourceScore_(mission, type) {
     const power = workerPowers[type];
     if (!power || mission.isCampaign || mission.assignedUnits >= mission.cap) return -1;
@@ -458,6 +483,7 @@ function solveOptimizer_(ui, missions, campaignMission, rng, onProgress) {
     return score;
   }
 
+  // Shortlist promising missions for one personnel type.
   function getCandidateMissionsForType_(type) {
     const currentAssigned = [];
     const fragmentRanked = [];
@@ -474,6 +500,7 @@ function solveOptimizer_(ui, missions, campaignMission, rng, onProgress) {
 
     const selected = {};
     const out = [];
+    // Add a mission to the shortlist without repeating it.
     function addMission_(m) {
       if (!m || selected[m.name]) return;
       selected[m.name] = true;
@@ -485,6 +512,7 @@ function solveOptimizer_(ui, missions, campaignMission, rng, onProgress) {
     return out;
   }
 
+  // Pick a strong option, allowing some variety between search attempts.
   function chooseFromRanked_(ranked, randomize, phase) {
     if (!ranked || ranked.length === 0) return null;
     if (!randomize || ranked.length === 1) return ranked[0];
@@ -507,6 +535,7 @@ function solveOptimizer_(ui, missions, campaignMission, rng, onProgress) {
     return pool[0];
   }
 
+  // Build an allocation by repeatedly choosing a useful worker placement.
   function executeGreedyAllocation_(randomize) {
     const totalWorkersAtStart = TYPE_ORDER.reduce((s, t) => s + ((workers[t] && workers[t].count) || 0), 0);
     while (true) {
@@ -587,6 +616,7 @@ function solveOptimizer_(ui, missions, campaignMission, rng, onProgress) {
     }
   }
 
+  // Try rebuilding farms around their two-second speed limits.
   function floorRebalance_() {
     if (!globalSpeedMult || globalSpeedMult <= 0) return;
 
@@ -687,6 +717,7 @@ function solveOptimizer_(ui, missions, campaignMission, rng, onProgress) {
     }
   }
 
+  // Look for better allocations by moving or swapping personnel.
   function polishFarmSolution_() {
     let movesMade = 0;
 
@@ -838,6 +869,7 @@ function solveOptimizer_(ui, missions, campaignMission, rng, onProgress) {
     }
   }
 
+  // Try redistributing small groups of one personnel type.
   function polishByWorkerType_() {
     TYPE_ORDER.forEach(type => {
       const baseSnap = snapshotState_();
@@ -893,6 +925,7 @@ function solveOptimizer_(ui, missions, campaignMission, rng, onProgress) {
     });
   }
 
+  // Place spare personnel when they improve the main or secondary score.
   function assignUnassignedTieBreakers_() {
     while (true) {
       const baseSummary = getSolutionSummary_();
@@ -926,10 +959,8 @@ function solveOptimizer_(ui, missions, campaignMission, rng, onProgress) {
     }
   }
 
+  // Free personnel who no longer improve a speed-capped farm.
   function removeRedundantCappedWorkers_() {
-    // Once the two-second floor is reached, additional power has no value.
-    // Release zero-marginal workers from most to least expensive before the
-    // campaign remainder is assigned.
     farmMissionPool.forEach(mission => {
       const cappedRunsPerHour = 60 / MIN_DURATION_MINS;
       if (mission.currentRunsPerHour < cappedRunsPerHour) return;
@@ -952,10 +983,12 @@ function solveOptimizer_(ui, missions, campaignMission, rng, onProgress) {
     });
   }
 
+  // Explore random moves and swaps to escape a stuck allocation.
   function simulatedAnnealingPolish_() {
     const farmMissions = farmMissionPool;
     if (farmMissions.length < 2) return;
 
+    // Return the main score used to judge a trial move.
     function scalarScore() {
       const s = getSolutionSummary_();
       if (isResourcesMode) return s.resourceUtility;
@@ -966,10 +999,12 @@ function solveOptimizer_(ui, missions, campaignMission, rng, onProgress) {
       return s.completions;
     }
 
+    // Choose one item using the run's repeatable random sequence.
     function randChoice(arr) {
       return arr[Math.floor(rng() * arr.length)];
     }
 
+    // Choose a personnel type currently assigned to this mission.
     function randTypeOnMission(mission) {
       const types = TYPE_ORDER.filter(
         t => (missionWorkerCounts[mission.name][t] || 0) > 0
@@ -977,6 +1012,7 @@ function solveOptimizer_(ui, missions, campaignMission, rng, onProgress) {
       return types.length > 0 ? randChoice(types) : null;
     }
 
+    // Try moving one randomly chosen worker to another farm.
     function tryNeighborRelocate() {
       const occupied = farmMissions.filter(m => m.assignedUnits > 0);
       if (occupied.length === 0) return false;
@@ -1009,6 +1045,7 @@ function solveOptimizer_(ui, missions, campaignMission, rng, onProgress) {
       return true;
     }
 
+    // Try swapping personnel between two farms.
     function tryNeighborSwap() {
       const occupied = farmMissions.filter(m => m.assignedUnits > 0);
       if (occupied.length < 2) return false;
@@ -1158,6 +1195,7 @@ function solveOptimizer_(ui, missions, campaignMission, rng, onProgress) {
     if (runIdx >= MULTISTART_MIN_RUNS && staleRuns >= MULTISTART_STALE_LIMIT) break;
   }
 
+  // Select the strongest result from all search attempts.
   function chooseBestRun_(results) {
     if (!results || results.length === 0) return null;
     let best = results[0];
@@ -1191,8 +1229,7 @@ function solveOptimizer_(ui, missions, campaignMission, rng, onProgress) {
   assignUnassignedTieBreakers_();
   removeRedundantCappedWorkers_();
 
-  // Hard phase boundary: campaign cannot influence or take workers back from
-  // the final selected-farm solution.
+  // Finish the farms before assigning the campaign remainder.
   onProgress({ phase: "campaign", completed: 0, total: 1 });
   assignRemainingWorkersToCampaign_();
   const assignments = getAssignmentsArray_().sort((a, b) => {
@@ -1219,12 +1256,13 @@ function solveOptimizer_(ui, missions, campaignMission, rng, onProgress) {
     searchEffort: "standard",
     solutionStatus: "best-found",
     objective: { ...objective, upperBound: null, relativeGap: null },
-    solverStats: { engine: "CIFI heuristic", version: "3.0.1", nodes: 0, iterations: runResults.length },
+    solverStats: { engine: "CIFI heuristic", version: "3.0.2", nodes: 0, iterations: runResults.length },
     hybridIdeals: hybridIdeals ? { ...hybridIdeals, proven: false } : null
   };
 }
 
 export class OptimizerValidationError extends Error {
+  // Keep the input problems together in one error.
   constructor(errors) {
     super("The optimiser input is invalid.");
     this.name = "OptimizerValidationError";
@@ -1233,7 +1271,7 @@ export class OptimizerValidationError extends Error {
 }
 
 /**
- * Pure deterministic optimiser entry point.
+ * Run the standard search, repeating the same choices for the same inputs.
  * @param {import('./types.js').OptimizerInput} rawInput
  * @param {{ seed?: number, onProgress?: (progress: {phase: string, determinate: boolean, completed: number, total: number, elapsedMs?: number, nodes?: number, upperBound?: number, relativeGap?: number}) => void }} options
  * @returns {import('./types.js').OptimizerResult}
@@ -1262,6 +1300,7 @@ export function optimize(rawInput, options = {}) {
   const solverSeed = Number.isInteger(options.seed) ? options.seed >>> 0 : deriveSeed(solverSeedInput);
   const rng = createSeededRandom(solverSeed);
   const onProgress = typeof options.onProgress === "function" ? options.onProgress : () => {};
+  // Send progress with a known amount of work to complete.
   const reportProgress = progress => onProgress({ determinate: true, ...progress });
   const workerPowers = Object.fromEntries(TYPE_ORDER.map(type => [type, input.workers[type].power]));
   const selectedFarmMissions = new Set(input.selectedFarmMissions);

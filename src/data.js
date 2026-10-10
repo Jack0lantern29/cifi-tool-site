@@ -91,10 +91,12 @@ export const FX4_FRAGMENT_BONUS = Object.freeze({ "F1-4": 1, "F2-4": 5, "F3-4": 
 export const ALL_FARM_MISSIONS = Object.freeze(MISSION_DATA.filter(({ name }) => !isCampaignName(name)).map(({ name }) => name));
 export const ALL_CAMPAIGN_MISSIONS = Object.freeze(MISSION_DATA.filter(({ name }) => isCampaignName(name)).map(({ name }) => name));
 
+// Check whether a mission name belongs to a campaign.
 export function isCampaignName(name) {
   return /^C\d+-\d+$/i.test(String(name || "").trim());
 }
 
+// Look up the extra fragment bonus for a mission.
 export function getFx4FragmentBonusMultiplier(missionName) {
   return FX4_FRAGMENT_BONUS[missionName] || 0;
 }

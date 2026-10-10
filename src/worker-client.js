@@ -1,4 +1,5 @@
 export class OptimizerCancelledError extends Error {
+  // Create the error used when a run stops before producing a result.
   constructor() {
     super("Optimisation was cancelled.");
     this.name = "OptimizerCancelledError";
@@ -6,6 +7,7 @@ export class OptimizerCancelledError extends Error {
 }
 
 export class OptimizerWorkerError extends Error {
+  // Keep the worker's error message and any input problems together.
   constructor(details = {}) {
     super(details.message || "The background optimiser failed.");
     this.name = details.name || "OptimizerWorkerError";
@@ -14,6 +16,7 @@ export class OptimizerWorkerError extends Error {
 }
 
 export class OptimizerWorkerClient {
+  // Prepare the worker connection and active-run tracking.
   constructor(workerFactory) {
     this.workerFactory = workerFactory;
     this.worker = null;
@@ -21,10 +24,12 @@ export class OptimizerWorkerClient {
     this.sequence = 0;
   }
 
+  // Report whether a search is currently active.
   get isRunning() {
     return Boolean(this.active);
   }
 
+  // Start the background worker if one is not already available.
   ensureWorker() {
     if (this.worker) return this.worker;
     this.worker = this.workerFactory();
@@ -33,6 +38,7 @@ export class OptimizerWorkerClient {
     return this.worker;
   }
 
+  // Send settings to the worker and wait for the result.
   run(input, { onProgress = () => {}, onCheckpoint = () => {} } = {}) {
     if (this.active) throw new Error("An optimisation is already running.");
     const requestId = `request-${++this.sequence}`;
@@ -43,6 +49,7 @@ export class OptimizerWorkerClient {
     });
   }
 
+  // Route worker updates to progress, checkpoints, results, or errors.
   handleMessage(message) {
     if (!this.active || message.requestId !== this.active.requestId) return;
     if (message.type === "progress") {
@@ -63,6 +70,7 @@ export class OptimizerWorkerClient {
     }
   }
 
+  // Reject the active run and stop the failed worker.
   fail(error) {
     if (!this.active) return;
     const { reject } = this.active;
@@ -72,6 +80,7 @@ export class OptimizerWorkerClient {
     this.worker = null;
   }
 
+  // Stop the run and return its latest complete allocation when available.
   cancel() {
     if (!this.active) return false;
     const { resolve, reject, latestCheckpoint, startedAt } = this.active;
@@ -92,6 +101,7 @@ export class OptimizerWorkerClient {
     return true;
   }
 
+  // Cancel any active run and release the worker.
   dispose() {
     if (this.active) this.cancel();
     this.worker?.terminate();

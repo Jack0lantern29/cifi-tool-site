@@ -2,27 +2,30 @@ import {
   ALL_FARM_MISSIONS,
   MATS,
   TYPE_ORDER
-} from "./src/data.js?v=3.0.1";
-import { canonicalStringify } from "./src/random.js?v=3.0.1";
-import { buildProgressView, formatDuration } from "./src/progress.js?v=3.0.1";
-import { clearState, loadState, saveState } from "./src/state.js?v=3.0.1";
-import { OptimizerCancelledError, OptimizerWorkerClient } from "./src/worker-client.js?v=3.0.1";
+} from "./src/data.js?v=3.0.2";
+import { canonicalStringify } from "./src/random.js?v=3.0.2";
+import { buildProgressView, formatDuration } from "./src/progress.js?v=3.0.2";
+import { clearState, loadState, saveState } from "./src/state.js?v=3.0.2";
+import { OptimizerCancelledError, OptimizerWorkerClient } from "./src/worker-client.js?v=3.0.2";
 import {
   createDefaultInput,
   getAvailableModes,
   getVisibleCampaignNames,
   getVisibleFarmNames,
   validateInput
-} from "./src/validation.js?v=3.0.1";
+} from "./src/validation.js?v=3.0.2";
 
-const APP_VERSION = "3.0.1";
+const APP_VERSION = "3.0.2";
 const elements = new Map();
+// Find a page element and remember it for later use.
 const byId = id => {
   if (!elements.has(id)) elements.set(id, document.getElementById(id));
   return elements.get(id);
 };
 
+// Turn a personnel name into a field ID.
 const typeKey = type => String(type).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+// Match an input error to its page field.
 const fieldId = field => {
   if (field.startsWith("worker-power-")) return `power-${typeKey(field.slice(13))}`;
   if (field.startsWith("worker-count-")) return `count-${typeKey(field.slice(13))}`;
@@ -38,9 +41,10 @@ let progressStartedAt = null;
 let latestProgress = null;
 const workerClient = new OptimizerWorkerClient(() => {
   if (!window.Worker) throw new Error("This browser does not support background optimisation.");
-  return new Worker(new URL("./src/worker.js?v=3.0.1", import.meta.url), { type: "module" });
+  return new Worker(new URL("./src/worker.js?v=3.0.2", import.meta.url), { type: "module" });
 });
 
+// Show the selected tab and optionally move focus to it.
 function setTab(button, focus = false) {
   document.querySelectorAll('[role="tab"]').forEach(tab => {
     const active = tab === button;
@@ -54,6 +58,7 @@ function setTab(button, focus = false) {
   if (focus) button.focus();
 }
 
+// Connect tab buttons and keyboard navigation.
 function initialiseTabs() {
   const tabs = Array.from(document.querySelectorAll('[role="tab"]'));
   tabs.forEach((tab, index) => {
@@ -71,24 +76,28 @@ function initialiseTabs() {
   });
 }
 
+// Connect the shortcuts that scroll to each section.
 function initialiseSectionJumps() {
   document.querySelectorAll(".jump-button").forEach(button => {
     button.addEventListener("click", () => byId(button.dataset.jump)?.scrollIntoView({ behavior: "smooth", block: "start" }));
   });
 }
 
+// Show the modes available with the current unlocks.
 function renderModeOptions(preferred = byId("modeSelect").value) {
   const options = getAvailableModes(byId("ouroToggle").checked);
   byId("modeSelect").replaceChildren(...options.map(mode => new Option(mode, mode)));
   byId("modeSelect").value = options.includes(preferred) ? preferred : "Maximising Resources";
 }
 
+// Show available campaign targets and keep the current choice when possible.
 function renderCampaignTargets(preferred = byId("campaignTarget").value) {
   const names = getVisibleCampaignNames(byId("ouroToggle").checked);
   byId("campaignTarget").replaceChildren(...names.map(name => new Option(name, name)));
   byId("campaignTarget").value = names.includes(preferred) ? preferred : (names.includes("C4-11") ? "C4-11" : names[0]);
 }
 
+// Build mission selection tiles grouped by tier.
 function createMissionTierMarkup(names, selected, inputClass) {
   const tiers = { F1: [], F2: [], F3: [], F4: [] };
   names.forEach(name => tiers[name.split("-")[0]]?.push(name));
@@ -106,6 +115,7 @@ function createMissionTierMarkup(names, selected, inputClass) {
   }).join("");
 }
 
+// Refresh the farm choices and handle selection changes.
 function renderFarmMissions() {
   const visible = getVisibleFarmNames(byId("ouroToggle").checked);
   const container = byId("farmMissionSelectionGrid");
@@ -122,6 +132,7 @@ function renderFarmMissions() {
   });
 }
 
+// Refresh the farms allowed to run alongside the campaign.
 function renderCampaignFarmMissions() {
   const container = byId("campaignFarmMissionSelectionGrid");
   if (!byId("campaignEnabled").checked) {
@@ -141,6 +152,7 @@ function renderCampaignFarmMissions() {
   });
 }
 
+// Show settings that apply to the current mode and unlocks.
 function syncConditionalVisibility() {
   const ouro = byId("ouroToggle").checked;
   const campaign = byId("campaignEnabled").checked;
@@ -156,6 +168,7 @@ function syncConditionalVisibility() {
   renderCampaignFarmMissions();
 }
 
+// Update the fragment and resource percentages beside the slider.
 function updateHybridWeightDisplay() {
   const slider = byId("hybridFragmentPercent");
   const fragments = Math.min(100, Math.max(0, Math.round(Number(slider.value) || 0)));
@@ -167,6 +180,7 @@ function updateHybridWeightDisplay() {
   byId("hybridResourcePercentText").value = `${resources}%`;
 }
 
+// Collect the current settings from the page.
 function readFormInput() {
   const workers = {};
   TYPE_ORDER.forEach(type => {
@@ -200,6 +214,7 @@ function readFormInput() {
   };
 }
 
+// Fill the page with loaded or default settings.
 function applyInput(input) {
   byId("ouroToggle").checked = input.ouroUnlocked;
   renderModeOptions(input.mode);
@@ -231,6 +246,7 @@ function applyInput(input) {
   syncConditionalVisibility();
 }
 
+// Remove the previous input errors.
 function clearValidation() {
   document.querySelectorAll("[aria-invalid='true']").forEach(element => {
     element.removeAttribute("aria-invalid");
@@ -241,6 +257,7 @@ function clearValidation() {
   byId("validationList").replaceChildren();
 }
 
+// Show input errors beside their fields and in the summary.
 function showValidation(errors) {
   clearValidation();
   const seen = new Set();
@@ -272,16 +289,19 @@ function showValidation(errors) {
   byId("validationSummary").focus();
 }
 
+// Wait briefly before saving so typing does not trigger repeated saves.
 function scheduleSave() {
   window.clearTimeout(saveTimer);
   saveTimer = window.setTimeout(persistCurrentIfValid, 180);
 }
 
+// Save the current settings only when they pass the input checks.
 function persistCurrentIfValid() {
   const { input, errors } = validateInput(readFormInput());
   if (!errors.length) persistInput(input);
 }
 
+// Save settings and show a notice if browser storage fails.
 function persistInput(input) {
   try {
     saveState(input);
@@ -292,11 +312,13 @@ function persistInput(input) {
   }
 }
 
+// Show or hide the settings notice.
 function showNotice(message) {
   byId("stateNotice").textContent = message;
   byId("stateNotice").classList.toggle("hidden", !message);
 }
 
+// Update the buttons and progress panel while a search runs.
 function setRunning(running) {
   byId("runOptimizerBtn").disabled = running;
   byId("resetInputsBtn").disabled = running;
@@ -304,10 +326,12 @@ function setRunning(running) {
   byId("runProgressPanel").classList.toggle("hidden", !running);
 }
 
+// Update the short status message.
 function setStatus(text) {
   byId("statusText").textContent = text;
 }
 
+// Refresh the progress bar, elapsed time, and search details.
 function renderProgress(updateStatus = false) {
   if (!latestProgress || progressStartedAt == null) return;
   const view = buildProgressView(latestProgress);
@@ -338,11 +362,13 @@ function renderProgress(updateStatus = false) {
   byId("runProgressTelemetry").textContent = telemetry.join(" · ") || "Waiting for solver telemetry…";
 }
 
+// Store the latest progress and display it.
 function updateProgress(progress) {
   latestProgress = { ...progress };
   renderProgress(true);
 }
 
+// Stop the progress timer and restore the idle controls.
 function stopProgress() {
   if (progressTimer != null) window.clearInterval(progressTimer);
   progressTimer = null;
@@ -351,6 +377,7 @@ function stopProgress() {
   setRunning(false);
 }
 
+// Prepare the progress display for a new run.
 function startProgress() {
   stopProgress();
   progressStartedAt = performance.now();
@@ -359,6 +386,7 @@ function startProgress() {
   progressTimer = window.setInterval(() => renderProgress(false), 1000);
 }
 
+// Check inputs, start the search, and display its result or error.
 async function runOptimizer() {
   stopProgress();
   clearValidation();
@@ -380,7 +408,9 @@ async function runOptimizer() {
     }
     stopProgress();
     renderResult(result);
-    const completionStatus = result.solutionStatus === "cancelled-best" ? "Cancelled — best found" : "Completed";
+    const completionStatus = result.solutionStatus === "cancelled-best" ? "Cancelled — best found"
+      : result.searchEffort === "crazy" && result.solutionStatus === "best-found" ? "Best found — target not verified"
+      : result.searchEffort === "crazy" ? "Completed — accuracy target met" : "Completed";
     setStatus(completionStatus);
     byId("output").scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (error) {
@@ -396,6 +426,7 @@ async function runOptimizer() {
   }
 }
 
+// Stop the active search and keep any complete result already found.
 function cancelOptimizer() {
   if (!workerClient.isRunning) return;
   setStatus("Cancelling…");
@@ -403,11 +434,13 @@ function cancelOptimizer() {
   workerClient.cancel();
 }
 
+// Format a number for display, or show a dash when unavailable.
 function formatNumber(value, digits = 1) {
   if (!Number.isFinite(value)) return "—";
   return new Intl.NumberFormat(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(value);
 }
 
+// Shorten consecutive mission names into readable ranges.
 function formatSelectedFarms(names) {
   if (!names.length) return "None selected";
   const groups = new Map();
@@ -426,6 +459,7 @@ function formatSelectedFarms(names) {
     const numbers = [...new Set(values)].sort((a, b) => a - b);
     let start = numbers[0];
     let end = start;
+    // Add the current mission or range to the display list.
     const appendRange = () => compact.push(start === end ? `${prefix}-${start}` : `${prefix}-${start}–${end}`);
     for (let index = 1; index < numbers.length; index++) {
       if (numbers[index] === end + 1) {
@@ -441,6 +475,7 @@ function formatSelectedFarms(names) {
   return [...compact, ...unmatched].join(" · ");
 }
 
+// Fill the output tables with allocations, rewards, and remaining personnel.
 function renderResult(result) {
   byId("campaignEtaText").textContent = formatNumber(result.campaignETA, 3);
   byId("modeUsedText").textContent = result.modeUsed;
@@ -471,6 +506,7 @@ function renderResult(result) {
   byId("unassignedBody").innerHTML = TYPE_ORDER.map(type => `<tr><td>${type}</td><td data-label="Remaining">${formatNumber(result.unassignedWorkers[type] || 0, 0)}</td></tr>`).join("");
 }
 
+// Clear the result tables and return the status to Ready.
 function clearOutput() {
   stopProgress();
   ["campaignEtaText", "modeUsedText", "elapsedText", "selectedFarmCountText", "selectedFarmNamesText"].forEach(id => { byId(id).textContent = "—"; });
@@ -482,6 +518,7 @@ function clearOutput() {
   setStatus("Ready");
 }
 
+// Confirm the reset, clear saved settings, and restore defaults.
 function resetInputs() {
   const current = validateInput(readFormInput()).input;
   const defaults = createDefaultInput();
@@ -496,6 +533,7 @@ function resetInputs() {
   showNotice(resetWarning);
 }
 
+// Connect the select-all and clear-all mission buttons.
 function initialiseSelectionButtons() {
   byId("missionSelectAllBtn").addEventListener("click", () => {
     getVisibleFarmNames(byId("ouroToggle").checked).forEach(name => selectedFarmMissions.add(name));
@@ -515,6 +553,7 @@ function initialiseSelectionButtons() {
   });
 }
 
+// Connect settings changes and the run, cancel, and reset buttons.
 function initialiseForm() {
   byId("ouroToggle").addEventListener("change", () => {
     const mode = byId("modeSelect").value;
@@ -543,6 +582,7 @@ function initialiseForm() {
   window.addEventListener("pagehide", persistCurrentIfValid);
 }
 
+// Set up the page and restore saved settings.
 function initialise() {
   initialiseTabs();
   initialiseSectionJumps();

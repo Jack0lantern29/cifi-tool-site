@@ -4,24 +4,29 @@ import test from "node:test";
 import { OptimizerCancelledError, OptimizerWorkerClient } from "../src/worker-client.js";
 
 class FakeWorker {
+  // Set up a fake worker to test messages and cancellation.
   constructor() {
     this.listeners = new Map();
     this.messages = [];
     this.terminated = false;
   }
 
+  // Store a listener for a simulated worker event.
   addEventListener(type, listener) {
     this.listeners.set(type, listener);
   }
 
+  // Record a request sent to the fake worker.
   postMessage(message) {
     this.messages.push(message);
   }
 
+  // Deliver a simulated worker reply to the client.
   emitMessage(message) {
     this.listeners.get("message")?.({ data: message });
   }
 
+  // Record that the fake worker was stopped.
   terminate() {
     this.terminated = true;
   }

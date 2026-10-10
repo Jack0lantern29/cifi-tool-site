@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   buildCrazyContextForTest,
+  certifyBoundForTest,
   evaluateCrazyAssignmentsForTest,
   maxResourceTotalsForTest,
   missionRunUpperBoundForTest,
@@ -11,7 +12,7 @@ import {
   workerMissionUpperBoundForTest
 } from "../src/crazy-optimizer.js";
 import { MISSION_DATA } from "../src/data.js";
-import { describeObjective, PROOF_RELATIVE_GAP } from "../src/objective.js";
+import { describeObjective, PROOF_RELATIVE_GAP, relativeGap } from "../src/objective.js";
 import { optimize } from "../src/optimizer.js";
 import { createDefaultInput } from "../src/validation.js";
 
@@ -51,6 +52,7 @@ test("Overkill bounds exclude personnel and mission output that cannot be useful
   assert.ok(maxResourceTotalsForTest(context).Chromium < 8000);
 });
 
+// Build a campaign example with stronger and weaker personnel.
 function campaignStrengthInput() {
   const input = createDefaultInput();
   input.campaignEnabled = true;
@@ -61,6 +63,7 @@ function campaignStrengthInput() {
   return input;
 }
 
+// Check that campaign slots go to the strongest available personnel.
 function assertStrongestCampaignPersonnel(result) {
   assert.deepEqual(result.assignments.filter(assignment => assignment.name === "C1-1"), [
     { name: "C1-1", type: "Combat Corvette", count: 5 }
@@ -77,6 +80,7 @@ test("Overkill campaign allocation uses the strongest remaining personnel", asyn
   assertStrongestCampaignPersonnel(await optimizeCrazy({ ...campaignStrengthInput(), searchEffort: "crazy" }));
 });
 
+// Build a small example whose best allocation can be checked exhaustively.
 function tinyExactInput(mode) {
   const input = createDefaultInput();
   input.ouroUnlocked = true;
@@ -90,6 +94,7 @@ function tinyExactInput(mode) {
   return input;
 }
 
+// List every allowed placement for the small test example.
 function enumerateTinyAssignments(input) {
   const missions = input.selectedFarmMissions;
   const types = ["Mining Pod", "Fireteam Carrier"];
@@ -110,6 +115,7 @@ function enumerateTinyAssignments(input) {
   return candidates;
 }
 
+// Check whole personnel counts, available totals, and mission limits.
 function assertAllocationInvariants(input, result) {
   const missionCaps = Object.fromEntries(MISSION_DATA.map(mission => [mission.name, mission.cap]));
   const assignedByType = {};
@@ -150,9 +156,77 @@ test("Overkill matches exhaustive tiny-instance primary objectives", async () =>
       result.assignments.filter(assignment => assignment.name.startsWith("F"))
     ).summary;
     const resultPrimary = describeObjective(mode, resultSummary, ideals).primaryValue;
-    const shortfall = Math.max(0, exactPrimary - resultPrimary) / Math.max(1, Math.abs(resultPrimary));
+    const shortfall = relativeGap(resultPrimary, exactPrimary);
 
-    assert.ok(shortfall <= PROOF_RELATIVE_GAP * 3 + 1e-9, `${mode} primary shortfall ${shortfall}`);
+    assert.ok(shortfall != null && shortfall <= PROOF_RELATIVE_GAP, `${mode} primary shortfall ${shortfall}`);
     assertAllocationInvariants(input, result);
+  }
+});
+
+test("tiny positive objectives retain relative accuracy and contradictory bounds are rejected", () => {
+  assert.ok(Math.abs(relativeGap(1e-12, 2e-12) - 1) < 1e-12);
+  assert.equal(relativeGap(0, 0), 0);
+  assert.equal(relativeGap(0, 1e-20), null);
+  assert.equal(relativeGap(1, 0.8), null);
+  assert.equal(certifyBoundForTest(1, 0.8), null);
+  assert.equal(certifyBoundForTest(0, 1e-20), null);
+  assert.equal(certifyBoundForTest(1e-12, 2e-12), null);
+  assert.ok(certifyBoundForTest(1e-12, 1e-12));
+});
+
+test("zero-output and fully capped farms retain valid certificates and campaign remainder", async () => {
+  const input = createDefaultInput();
+  input.ouroUnlocked = true;
+  input.searchEffort = "crazy";
+  input.mode = "Fragments + Resources";
+  input.selectedFarmMissions = ["F1-4", "F3-4"];
+  input.workers["Mining Pod"] = { power: 10, count: 3 };
+  const zeroRewards = await optimizeCrazy(input);
+  assert.equal(zeroRewards.solutionStatus, "tolerance-met");
+  assert.ok(zeroRewards.totals.Completions > 0);
+  assert.equal(zeroRewards.hybridIdeals.fragments, 0);
+  assert.equal(zeroRewards.hybridIdeals.resourceUtility, 0);
+
+  input.selectedFarmMissions = ["F1-1"];
+  input.selectedCampaignFarmMissions = ["F1-1"];
+  input.campaignEnabled = true;
+  input.campaignTargetName = "C1-1";
+  input.workers["Mining Pod"] = { power: 1000, count: 100 };
+  input.fragmentsPerCompletion = 0.001;
+  const capped = await optimizeCrazy(input);
+  assert.equal(capped.solutionStatus, "tolerance-met");
+  assert.equal(capped.totals.Completions, 1800);
+  assert.equal(capped.assignments.find(a => a.name === "F1-1").count, 1);
+  assert.equal(capped.campaignAssigned, 5);
+  assert.equal(capped.unassignedWorkers["Mining Pod"], 94);
+  assert.ok(capped.objective.relativeGap <= PROOF_RELATIVE_GAP);
+});
+
+test("late-game fragment and hybrid optima are invariant to fragment yield scale", async () => {
+  for (const fragments of [0.001, 1e-12, 1000]) {
+    const input = createDefaultInput();
+    input.ouroUnlocked = true;
+    input.searchEffort = "crazy";
+    input.selectedFarmMissions = ["F4-3", "F3-2"];
+    input.workers["Mining Pod"] = { count: 3, power: 1 };
+    input.workers["Fireteam Carrier"] = { count: 1, power: 1 };
+    input.weights.Exon = 10;
+    input.fragmentsPerCompletion = fragments;
+    input.hybridFragmentPercent = 25;
+    input.mode = "Fragments";
+    const exactFragments = 4 * 60 / 975000 * fragments;
+    const fragmentResult = await optimizeCrazy(input);
+    assert.ok(relativeGap(fragmentResult.totals.Fragments, exactFragments) <= PROOF_RELATIVE_GAP);
+    assert.ok(fragmentResult.assignments.every(a => a.name === "F3-2"));
+    assert.equal(fragmentResult.solutionStatus, "tolerance-met");
+    input.mode = "Fragments + Resources";
+    const hybrid = await optimizeCrazy(input);
+    assert.ok(relativeGap(hybrid.hybridIdeals.fragments, exactFragments) <= PROOF_RELATIVE_GAP);
+    assert.ok(hybrid.hybridIdeals.fragmentUpperBound >= exactFragments);
+    assert.ok(hybrid.assignments.every(a => a.name === "F4-3"));
+    assert.ok(Math.abs(hybrid.objective.primaryValue - 0.775) < 1e-8);
+    assert.equal(hybrid.solutionStatus, "tolerance-met");
+    assert.ok(hybrid.objective.relativeGap <= PROOF_RELATIVE_GAP);
+    assertAllocationInvariants(input, hybrid);
   }
 });

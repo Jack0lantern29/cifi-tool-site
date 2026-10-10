@@ -1,3 +1,4 @@
+// List the fields shared by settings, progress updates, and results.
 /**
  * @typedef {{ power: number, count: number }} WorkerInput
  * @typedef {{ engineeringBadge: boolean, swarmLevel: number, productivityLevel: number, research58: number, research70: number, research80: number, relic3: number, ts07Enabled: boolean }} ModifierInput
@@ -34,7 +35,7 @@
  *   solutionStatus: "best-found"|"optimal"|"tolerance-met"|"cancelled-best",
  *   objective: { primaryName: string, primaryValue: number, secondaryName: string, secondaryValue: number, upperBound: number|null, relativeGap: number|null },
  *   solverStats: { engine: string, version: string, nodes: number, iterations: number },
- *   hybridIdeals: { fragments: number, resourceUtility: number, fragmentWeight: number, resourceWeight: number, proven: boolean }|null,
+ *   hybridIdeals: { fragments: number, resourceUtility: number, fragmentWeight: number, resourceWeight: number, proven: boolean, fragmentUpperBound?: number, resourceUpperBound?: number }|null,
  *   seed: number,
  *   runId: string,
  *   durationMs?: number,

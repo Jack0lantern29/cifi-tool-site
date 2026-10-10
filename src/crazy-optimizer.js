@@ -6,7 +6,7 @@ import {
   OURO_OFF_VISIBLE_FARMS,
   TYPE_ORDER,
   TYPE_RANK
-} from "./data.js?v=3.0.1";
+} from "./data.js?v=3.0.2";
 import {
   compareSummaries,
   describeObjective,
@@ -15,22 +15,25 @@ import {
   PROOF_RELATIVE_GAP,
   relativeGap,
   summaryFromTotals
-} from "./objective.js?v=3.0.1";
-import { optimize, OptimizerValidationError } from "./optimizer.js?v=3.0.1";
-import { deriveSeed, formatRunId } from "./random.js?v=3.0.1";
-import { calculateGlobalSpeedMultiplier, validateInput } from "./validation.js?v=3.0.1";
+} from "./objective.js?v=3.0.2";
+import { optimize, OptimizerValidationError } from "./optimizer.js?v=3.0.2";
+import { deriveSeed, formatRunId } from "./random.js?v=3.0.2";
+import { calculateGlobalSpeedMultiplier, validateInput } from "./validation.js?v=3.0.2";
 
 const MAX_RUNS_PER_HOUR = 1800;
 const NUMERIC_EPSILON = 1e-9;
+const SOLVE_RELATIVE_GAP = PROOF_RELATIVE_GAP / 100;
+const BOUND_ROUNDOFF = 1e-9;
 const SOLVER_PACKAGE_VERSION = "1.15.3-pre.4";
 
 let highsPromise;
 
+// Load the Overkill solver once and reuse it for later runs.
 async function loadSolver_() {
   if (!highsPromise) {
-    highsPromise = import("../vendor/highs/highs.mjs?v=3.0.1").then(({ default: loadHighs }) => loadHighs({
+    highsPromise = import("../vendor/highs/highs.mjs?v=3.0.2").then(({ default: loadHighs }) => loadHighs({
       locateFile: file => file.endsWith(".wasm")
-        ? new URL("../vendor/highs/highs.wasm?v=3.0.1", import.meta.url).href
+        ? new URL("../vendor/highs/highs.wasm?v=3.0.2", import.meta.url).href
         : file,
       print: () => {},
       printErr: () => {}
@@ -39,6 +42,7 @@ async function loadSolver_() {
   return highsPromise;
 }
 
+// Prepare the selected farms, available personnel, and active bonuses.
 function buildContext_(input) {
   const selected = new Set(input.campaignEnabled ? input.selectedCampaignFarmMissions : input.selectedFarmMissions);
   const speed = calculateGlobalSpeedMultiplier(input);
@@ -56,12 +60,14 @@ function buildContext_(input) {
   return { input, missions, workers, speed, tsMultiplier };
 }
 
+// Create a reward total with every value starting at zero.
 function emptyTotals_() {
   const totals = { Academy: 0, Completions: 0, Fragments: 0 };
   MATS.forEach(material => { totals[material] = 0; });
   return totals;
 }
 
+// Calculate hourly rewards and scores for a farm allocation.
 function evaluateFarmAssignments_(context, farmAssignments) {
   const totals = emptyTotals_();
   const byMission = new Map(context.missions.map(mission => [mission.name, { mission, power: 0, units: 0 }]));
@@ -84,6 +90,7 @@ function evaluateFarmAssignments_(context, farmAssignments) {
   return { totals, summary: summaryFromTotals(totals, context.input.weights) };
 }
 
+// Calculate the campaign's personnel limit after relic bonuses.
 function effectiveCampaignCap_(input) {
   if (!input.campaignEnabled) return 0;
   const base = CAMPAIGN_BASE_CAPS[input.campaignTargetName] || 0;
@@ -91,10 +98,8 @@ function effectiveCampaignCap_(input) {
   return Math.round(base * relicMultiplier);
 }
 
+// Free personnel whose removal leaves farm output unchanged.
 function removeRedundantCappedAssignments_(context, farmAssignments) {
-  // Assignment variables have no objective cost after a mission reaches the
-  // two-second floor, so an otherwise optimal MILP solution may contain spare
-  // workers. Strip those workers without changing any farm output.
   const counts = new Map();
   farmAssignments.forEach(({ name, type, count }) => {
     if (count <= 0) return;
@@ -129,6 +134,7 @@ function removeRedundantCappedAssignments_(context, farmAssignments) {
   });
 }
 
+// Place spare personnel wherever they can still improve the score.
 function redistributeBeneficialRemainder_(context, farmAssignments, hybridIdeals) {
   const counts = new Map();
   const missionState = new Map(context.missions.map(mission => [mission.name, { mission, units: 0, power: 0 }]));
@@ -164,7 +170,7 @@ function redistributeBeneficialRemainder_(context, farmAssignments, hybridIdeals
         const oldRuns = Math.min(MAX_RUNS_PER_HOUR, mission.alpha * state.power);
         const newRuns = Math.min(MAX_RUNS_PER_HOUR, mission.alpha * (state.power + worker.power));
         const deltaRuns = newRuns - oldRuns;
-        if (deltaRuns <= NUMERIC_EPSILON) return;
+        if (deltaRuns <= 0) return;
         const candidateTotals = { ...currentTotals };
         candidateTotals.Completions += deltaRuns * context.tsMultiplier;
         candidateTotals.Academy += deltaRuns * context.tsMultiplier * mission.academy;
@@ -198,6 +204,7 @@ function redistributeBeneficialRemainder_(context, farmAssignments, hybridIdeals
   });
 }
 
+// Free unnecessary personnel and give them useful farm work.
 function rebalanceFarmAssignments_(context, farmAssignments, hybridIdeals) {
   return redistributeBeneficialRemainder_(
     context,
@@ -206,9 +213,50 @@ function rebalanceFarmAssignments_(context, farmAssignments, hybridIdeals) {
   );
 }
 
+// Check that assignments use whole counts and stay within all limits.
+function validateFarmAssignments_(context, assignments) {
+  const counts = new Map();
+  const units = new Map();
+  for (const { name, type, count } of assignments) {
+    const mission = context.missions.find(candidate => candidate.name === name);
+    const worker = context.workers.find(candidate => candidate.type === type);
+    if (!mission || !worker || !Number.isSafeInteger(count) || count < 0) {
+      throw new Error("The solver returned an invalid personnel allocation.");
+    }
+    counts.set(type, (counts.get(type) || 0) + count);
+    units.set(name, (units.get(name) || 0) + count);
+    if (counts.get(type) > worker.count || units.get(name) > mission.cap) {
+      throw new Error("The solver allocation exceeds available personnel or mission capacity.");
+    }
+  }
+}
+
+// Check whether the score is close enough to a trustworthy upper limit.
+function certifyBound_(value, bound, tolerance = PROOF_RELATIVE_GAP) {
+  if (!Number.isFinite(value) || !Number.isFinite(bound) || value < 0 || bound < 0) return null;
+  const magnitude = Math.max(value, bound);
+  if (value - bound > BOUND_ROUNDOFF * magnitude) return null;
+  const upperBound = magnitude * (1 + BOUND_ROUNDOFF);
+  const gap = relativeGap(value, upperBound);
+  return gap != null && gap <= tolerance ? { upperBound, relativeGap: gap } : null;
+}
+
+// Allow for uncertainty in hybrid benchmarks when checking accuracy.
+function conservativePrimary_(mode, summary, ideals) {
+  if (getModeKind(mode) !== "hybrid" || !ideals?.proven) return describeObjective(mode, summary, ideals).primaryValue;
+  return normalizedHybridScore(summary, {
+    ...ideals,
+    fragments: ideals.fragmentUpperBound ?? ideals.fragments,
+    resourceUtility: ideals.resourceUpperBound ?? ideals.resourceUtility
+  });
+}
+
+// Finish farm allocation, assign the campaign remainder, and check the result.
 function finalizeResult_(context, farmAssignments, metadata) {
   const { input } = context;
+  validateFarmAssignments_(context, farmAssignments);
   const finalFarmAssignments = rebalanceFarmAssignments_(context, farmAssignments, metadata.hybridIdeals);
+  validateFarmAssignments_(context, finalFarmAssignments);
   const { totals, summary } = evaluateFarmAssignments_(context, finalFarmAssignments);
   const remaining = Object.fromEntries(TYPE_ORDER.map(type => [type, input.workers[type].count]));
   finalFarmAssignments.forEach(({ type, count }) => { remaining[type] -= count; });
@@ -239,7 +287,12 @@ function finalizeResult_(context, farmAssignments, metadata) {
   }
 
   const objectiveBase = describeObjective(input.mode, summary, metadata.hybridIdeals);
+  const conservativeValue = conservativePrimary_(input.mode, summary, metadata.hybridIdeals);
+  const certificate = certifyBound_(conservativeValue, metadata.upperBound);
+  const claimsProof = metadata.solutionStatus === "tolerance-met" || metadata.solutionStatus === "optimal";
+  const solutionStatus = claimsProof && !certificate ? "best-found" : metadata.solutionStatus;
   const notices = [];
+  if (claimsProof && !certificate) notices.push("Best allocation found; the requested optimality tolerance could not be verified.");
   if (context.missions.length === 0) notices.push("No farm missions were selected for this run.");
   if (input.campaignEnabled && campaignAssigned >= campaignCapacity && Object.values(remaining).some(count => count > 0)) {
     notices.push("Campaign capacity was reached; some personnel remain unassigned.");
@@ -259,11 +312,11 @@ function finalizeResult_(context, farmAssignments, metadata) {
     globalSpeedMult: context.speed,
     modeUsed: input.mode,
     searchEffort: "crazy",
-    solutionStatus: metadata.solutionStatus,
+    solutionStatus,
     objective: {
       ...objectiveBase,
-      upperBound: Number.isFinite(metadata.upperBound) ? metadata.upperBound : null,
-      relativeGap: Number.isFinite(metadata.relativeGap) ? metadata.relativeGap : null
+      upperBound: certificate?.upperBound ?? (Number.isFinite(metadata.upperBound) ? metadata.upperBound : null),
+      relativeGap: certificate?.relativeGap ?? relativeGap(conservativeValue, metadata.upperBound)
     },
     solverStats: metadata.solverStats,
     hybridIdeals: metadata.hybridIdeals || null,
@@ -273,37 +326,67 @@ function finalizeResult_(context, farmAssignments, metadata) {
   };
 }
 
+// Extract farm assignments from a completed result.
 function farmAssignmentsFromResult_(result) {
   return result.assignments.filter(assignment => assignment.name.startsWith("F"));
 }
 
+// Rescale a solver rule so very small values remain meaningful.
+function scaledRow_(entries, lower, upper, scales, infinity) {
+  const combined = new Map();
+  entries.forEach(([index, value]) => {
+    combined.set(index, (combined.get(index) || 0) + value * scales[index]);
+  });
+  const nonzero = [...combined].filter(([, value]) => value !== 0);
+  const magnitude = Math.max(...nonzero.map(([, value]) => Math.abs(value)), 0) || 1;
+  if (!Number.isFinite(magnitude) || nonzero.some(([, value]) => Math.abs(value / magnitude) <= 1e-12)) {
+    throw new Error("The inputs span too large a numeric range to verify an optimal allocation.");
+  }
+  return {
+    entries: nonzero.map(([index, value]) => [index, value / magnitude]),
+    lower: lower <= -infinity ? -infinity : lower / magnitude,
+    upper: upper >= infinity ? infinity : upper / magnitude
+  };
+}
+
 class ModelBuilder_ {
+  // Start an empty collection of solver choices and rules.
   constructor(highs) {
     this.highs = highs;
     this.columns = [];
     this.rows = [];
   }
 
+  // Add one quantity the solver can choose, with its limits and score.
   addColumn(name, lower, upper, cost = 0, integer = false) {
     const index = this.columns.length;
     this.columns.push({ name, lower, upper, cost, integer });
     return index;
   }
 
+  // Add a rule that limits combinations of solver choices.
   addRow(entries, lower, upper) {
     const combined = new Map();
     entries.forEach(([index, value]) => {
-      if (Math.abs(value) <= NUMERIC_EPSILON) return;
+      if (value === 0) return;
       combined.set(index, (combined.get(index) || 0) + value);
     });
-    this.rows.push({ entries: [...combined.entries()].filter(([, value]) => Math.abs(value) > NUMERIC_EPSILON), lower, upper });
+    this.rows.push({ entries: [...combined.entries()].filter(([, value]) => value !== 0), lower, upper });
   }
 
+  // Scale and package the choices and rules for the solver.
   build() {
+    this.scales = this.columns.map(column => !column.integer && column.upper > 0 ? column.upper : 1);
+    const objectiveRange = this.columns.reduce((sum, column) => sum + Math.abs(column.cost * column.upper), 0);
+    this.objectiveScale = objectiveRange > 0 ? 10000 / objectiveRange : 1;
+    if (!Number.isFinite(this.objectiveScale) || this.scales.some(scale => !Number.isFinite(scale))) {
+      throw new Error("The inputs exceed the solver's numeric range.");
+    }
+    const rows = this.rows.map(row => scaledRow_(row.entries, row.lower, row.upper, this.scales, this.highs.infinity));
     const starts = [0];
     const indices = [];
     const values = [];
-    this.rows.forEach(row => {
+    rows.forEach(row => {
       row.entries.sort((a, b) => a[0] - b[0]).forEach(([index, value]) => {
         indices.push(index);
         values.push(value);
@@ -314,11 +397,11 @@ class ModelBuilder_ {
       numCols: this.columns.length,
       numRows: this.rows.length,
       sense: this.highs.constants.objectiveSense.maximize,
-      colCost: this.columns.map(column => column.cost),
-      colLower: this.columns.map(column => column.lower),
-      colUpper: this.columns.map(column => column.upper),
-      rowLower: this.rows.map(row => row.lower),
-      rowUpper: this.rows.map(row => row.upper),
+      colCost: this.columns.map((column, index) => column.cost * this.scales[index] * this.objectiveScale),
+      colLower: this.columns.map((column, index) => column.lower / this.scales[index]),
+      colUpper: this.columns.map((column, index) => column.upper / this.scales[index]),
+      rowLower: rows.map(row => row.lower),
+      rowUpper: rows.map(row => row.upper),
       matrix: { format: "csr", numRows: this.rows.length, numCols: this.columns.length, starts, indices, values },
       integrality: this.columns.map(column => column.integer
         ? this.highs.constants.variableType.integer
@@ -328,6 +411,7 @@ class ModelBuilder_ {
   }
 }
 
+// Find the most power this mission could hold with available personnel.
 function maximumMissionPower_(context, mission) {
   let slots = mission.cap;
   let power = 0;
@@ -340,15 +424,18 @@ function maximumMissionPower_(context, mission) {
   return power;
 }
 
+// Find the highest possible hourly runs for one mission.
 function missionRunUpperBound_(context, mission) {
   return Math.min(MAX_RUNS_PER_HOUR, mission.alpha * maximumMissionPower_(context, mission));
 }
 
+// Limit each personnel type to the most that could help this mission.
 function workerMissionUpperBound_(mission, worker) {
   const usefulToReachFloor = Math.max(1, Math.ceil(MAX_RUNS_PER_HOUR / (mission.alpha * worker.power) - NUMERIC_EPSILON));
   return Math.min(worker.count, mission.cap, usefulToReachFloor);
 }
 
+// Calculate safe upper limits for each resource's hourly output.
 function maxResourceTotals_(context) {
   return Object.fromEntries(MATS.map(material => [material,
     context.tsMultiplier * context.missions.reduce((sum, mission) =>
@@ -356,12 +443,14 @@ function maxResourceTotals_(context) {
   ]));
 }
 
+// Build a straight-line upper estimate of the resource score.
 export function logarithmTangent(value, weight = 1) {
   const point = Math.max(0, value);
   const slope = weight / (point + 1);
-  return { slope, intercept: weight * Math.log(point + 1) - slope * point };
+  return { slope, intercept: weight * Math.log1p(point) - slope * point };
 }
 
+// Turn personnel limits, mission rewards, and score targets into solver rules.
 function buildModel_(highs, context, specification) {
   const builder = new ModelBuilder_(highs);
   const x = new Map();
@@ -382,7 +471,7 @@ function buildModel_(highs, context, specification) {
   const maximumTotals = maxResourceTotals_(context);
   if (specification.utilityFactor > 0) {
     MATS.forEach(material => {
-      const upper = context.input.weights[material] * Math.log(maximumTotals[material] + 1);
+      const upper = context.input.weights[material] * Math.log1p(maximumTotals[material]);
       utility[material] = builder.addColumn(`utility_${material}`, 0, Math.max(0, upper), specification.utilityFactor, false);
     });
   }
@@ -440,9 +529,11 @@ function buildModel_(highs, context, specification) {
     });
   });
 
-  return { data: builder.build(), layout: { x, runs, utility, columns: builder.columns } };
+  const data = builder.build();
+  return { data, layout: { x, runs, utility, columns: builder.columns, scales: builder.scales, objectiveScale: builder.objectiveScale } };
 }
 
+// Convert the solver's answer into personnel assignments.
 function assignmentsFromVector_(context, layout, vector) {
   const assignments = [];
   context.missions.forEach(mission => {
@@ -455,6 +546,7 @@ function assignmentsFromVector_(context, layout, vector) {
   return assignments;
 }
 
+// Convert an existing allocation into a starting point for the solver.
 function vectorFromAssignments_(context, layout, assignments) {
   const vector = new Float64Array(layout.columns.length);
   assignments.forEach(({ name, type, count }) => {
@@ -466,11 +558,12 @@ function vectorFromAssignments_(context, layout, assignments) {
     context.workers.forEach(worker => {
       power += vector[layout.x.get(`${mission.name}|${worker.type}`)] * worker.power;
     });
-    vector[layout.runs[missionIndex]] = Math.min(MAX_RUNS_PER_HOUR, mission.alpha * power);
+    vector[layout.runs[missionIndex]] = Math.min(MAX_RUNS_PER_HOUR, mission.alpha * power) / layout.scales[layout.runs[missionIndex]];
   });
   return vector;
 }
 
+// Read a solver statistic, using a fallback if it is unavailable.
 function safeInfo_(model, name, fallback) {
   try {
     const value = model.info.get(name);
@@ -480,15 +573,21 @@ function safeInfo_(model, name, fallback) {
   }
 }
 
+// Set the solver's accuracy requirements and repeatable starting seed.
 function configureModel_(model, state) {
   model.options.set({
     output_flag: false,
-    mip_rel_gap: PROOF_RELATIVE_GAP,
+    mip_rel_gap: SOLVE_RELATIVE_GAP,
     mip_abs_gap: 0,
+    primal_feasibility_tolerance: 1e-9,
+    dual_feasibility_tolerance: 1e-9,
+    mip_feasibility_tolerance: 1e-9,
+    small_matrix_value: 1e-12,
     random_seed: state.seed & 0x7fffffff
   });
 }
 
+// Run a prepared model and collect allocations, progress, and bounds.
 async function solveExistingModel_(highs, context, model, layout, state) {
   let latestProgress = 0;
   if (state.warmAssignments?.length) {
@@ -499,7 +598,7 @@ async function solveExistingModel_(highs, context, model, layout, state) {
     [callbackType.mipImprovingSolution](event) {
       if (!event.data.mip_solution) return;
       const assignments = assignmentsFromVector_(context, layout, event.data.mip_solution);
-      state.onSolution?.(assignments, event.data.mip_dual_bound, event.data.mip_gap);
+      state.onSolution?.(assignments, event.data.mip_dual_bound / layout.objectiveScale, event.data.mip_gap);
     },
     [callbackType.mipLogging](event) {
       const now = performance.now();
@@ -511,7 +610,7 @@ async function solveExistingModel_(highs, context, model, layout, state) {
         completed: 0,
         total: 1,
         nodes: (state.nodeOffset || 0) + Number(event.data.mip_node_count || 0n),
-        upperBound: event.data.mip_dual_bound,
+        upperBound: event.data.mip_dual_bound / layout.objectiveScale,
         relativeGap: event.data.mip_gap,
         elapsedMs: now - state.startedAt
       });
@@ -524,44 +623,50 @@ async function solveExistingModel_(highs, context, model, layout, state) {
   }
   const vector = model.getSolution().colValue;
   const assignments = assignmentsFromVector_(context, layout, vector);
-  const objective = model.getObjectiveValue();
+  const objective = model.getObjectiveValue() / layout.objectiveScale;
   const nodes = safeInfo_(model, "mip_node_count", 0);
-  const dualBound = safeInfo_(model, "mip_dual_bound", objective);
+  const dualBound = safeInfo_(model, "mip_dual_bound", NaN) / layout.objectiveScale;
   return { assignments, objective, dualBound, nodes, status, optimal: status === highs.constants.modelStatus.optimal };
 }
 
+// Build and solve a model, then release its memory.
 async function runModel_(highs, context, specification, state) {
   const { data, layout } = buildModel_(highs, context, specification);
-  const model = highs.createModel(data);
+  const model = highs.createModel();
   try {
     configureModel_(model, state);
+    model.passModel(data);
     return await solveExistingModel_(highs, context, model, layout, state);
   } finally {
     model.dispose();
   }
 }
 
+// Combine repeated entries and keep only nonzero solver values.
 function sparseEntries_(entries) {
   const combined = new Map();
   entries.forEach(([index, value]) => {
-    if (Math.abs(value) <= NUMERIC_EPSILON) return;
+    if (value === 0) return;
     combined.set(index, (combined.get(index) || 0) + value);
   });
   const sorted = [...combined.entries()]
-    .filter(([, value]) => Math.abs(value) > NUMERIC_EPSILON)
+    .filter(([, value]) => value !== 0)
     .sort((a, b) => a[0] - b[0]);
   return { indices: sorted.map(([index]) => index), values: sorted.map(([, value]) => value) };
 }
 
+// Add a closer upper estimate for one resource's score.
 function addUtilityTangentRow_(model, highs, context, layout, material, point) {
   const tangent = logarithmTangent(point, context.input.weights[material]);
   const entries = [[layout.utility[material], 1]];
   context.missions.forEach((mission, index) => {
     entries.push([layout.runs[index], -tangent.slope * context.tsMultiplier * mission.rewards[material]]);
   });
-  model.addRow(-highs.infinity, tangent.intercept, sparseEntries_(entries));
+  const row = scaledRow_(entries, -highs.infinity, tangent.intercept, layout.scales, highs.infinity);
+  model.addRow(row.lower, row.upper, sparseEntries_(row.entries));
 }
 
+// Add a rule that helps preserve an earlier score during tie-breaking.
 function addNonlinearMinimumRow_(model, highs, context, layout, minimum, pointTotals) {
   let intercept = 0;
   const entries = [];
@@ -579,9 +684,11 @@ function addNonlinearMinimumRow_(model, highs, context, layout, minimum, pointTo
       context.input.weights[material]
     ).intercept;
   });
-  model.addRow(minimum.value - intercept, highs.infinity, sparseEntries_(entries));
+  const row = scaledRow_(entries, minimum.value - intercept, highs.infinity, layout.scales, highs.infinity);
+  model.addRow(row.lower, row.upper, sparseEntries_(row.entries));
 }
 
+// Calculate the score earned by one run of each mission.
 function runCosts_(context, kind) {
   return Object.fromEntries(context.missions.map(mission => {
     if (kind === "academy") return [mission.name, context.tsMultiplier * mission.academy];
@@ -591,6 +698,7 @@ function runCosts_(context, kind) {
   }));
 }
 
+// Score an allocation using fixed rewards per mission run.
 function linearValue_(context, assignments, runCosts) {
   const byMission = Object.fromEntries(context.missions.map(mission => [mission.name, 0]));
   assignments.forEach(({ name, type, count }) => { byMission[name] += context.input.workers[type].power * count; });
@@ -598,16 +706,18 @@ function linearValue_(context, assignments, runCosts) {
     Math.min(MAX_RUNS_PER_HOUR, mission.alpha * byMission[mission.name]) * (runCosts[mission.name] || 0), 0);
 }
 
+// Calculate only the resource totals for an allocation.
 function resourceTotalsFromAssignments_(context, assignments) {
   const { totals } = evaluateFarmAssignments_(context, assignments);
   return Object.fromEntries(MATS.map(material => [material, totals[material]]));
 }
 
+// Remember new resource amounts for refining score estimates.
 function addUniquePoint_(points, totals) {
   const added = [];
   MATS.forEach(material => {
     const value = Math.max(0, totals[material] || 0);
-    if (!points[material].some(existing => Math.abs(existing - value) <= NUMERIC_EPSILON * Math.max(1, value))) {
+    if (!points[material].some(existing => Math.abs(existing - value) <= 1e-12 * Math.max(Math.abs(existing), value))) {
       points[material].push(value);
       added.push([material, value]);
     }
@@ -615,26 +725,34 @@ function addUniquePoint_(points, totals) {
   return added;
 }
 
+// Check whether two sets of resource totals are effectively the same.
 function sameResourcePoint_(left, right) {
   return MATS.every(material => {
     const leftValue = left[material] || 0;
     const rightValue = right[material] || 0;
-    return Math.abs(leftValue - rightValue) <= NUMERIC_EPSILON * Math.max(1, Math.abs(leftValue), Math.abs(rightValue));
+    return Math.abs(leftValue - rightValue) <= 1e-12 * Math.max(Math.abs(leftValue), Math.abs(rightValue));
   });
 }
 
+// Save a set of resource totals unless it is already recorded.
 function addUniqueResourcePoint_(points, totals) {
   if (points.some(point => sameResourcePoint_(point, totals))) return false;
   points.push(Object.fromEntries(MATS.map(material => [material, Math.max(0, totals[material] || 0)])));
   return true;
 }
 
+// Find and verify an allocation scored with fixed rewards per run.
 async function solveLinear_(highs, context, runCosts, state, linearMinimums = [], nonlinearMinimums = []) {
   const result = await runModel_(highs, context, { runCosts, utilityFactor: 0, linearMinimums, nonlinearMinimums }, state);
   if (!result.optimal) throw new Error("HiGHS stopped before reaching the configured linear optimality tolerance.");
+  validateFarmAssignments_(context, result.assignments);
+  const certificate = certifyBound_(linearValue_(context, result.assignments, runCosts), result.dualBound, SOLVE_RELATIVE_GAP * 2);
+  if (!certificate) throw new Error("The solver's linear bound could not be verified against the returned allocation.");
+  result.dualBound = certificate.upperBound;
   return result;
 }
 
+// Refine resource-score estimates until the result meets the accuracy target.
 async function solveConcave_(highs, context, parameters, state) {
   const maximumTotals = maxResourceTotals_(context);
   const points = Object.fromEntries(MATS.map(material => [material, [0, maximumTotals[material]]]));
@@ -661,18 +779,20 @@ async function solveConcave_(highs, context, parameters, state) {
     linearMinimums: parameters.linearMinimums || [],
     nonlinearMinimums: parameters.nonlinearMinimums || []
   });
-  const model = highs.createModel(data);
+  const model = highs.createModel();
   try {
     configureModel_(model, state);
+    model.passModel(data);
     while (true) {
       iterations++;
       const solve = await solveExistingModel_(highs, context, model, layout, {
         ...state,
         nodeOffset: totalNodes,
         warmAssignments: bestAssignments,
+        // Keep useful allocations found during this search stage.
         onSolution(assignments, bound, solverGap) {
           const value = parameters.exactValue(assignments);
-          if (value > bestValue + NUMERIC_EPSILON) {
+          if (value > bestValue) {
             bestValue = value;
             bestAssignments = assignments;
             state.onExactSolution?.(assignments, value, bound, relativeGap(value, bound) ?? solverGap);
@@ -684,15 +804,17 @@ async function solveConcave_(highs, context, parameters, state) {
       const candidateValue = parameters.exactValue(solve.assignments);
       const candidateTotals = resourceTotalsFromAssignments_(context, solve.assignments);
       addUniqueResourcePoint_(vectors, candidateTotals);
-      if (candidateValue > bestValue + NUMERIC_EPSILON) {
+      if (candidateValue > bestValue) {
         bestValue = candidateValue;
         bestAssignments = solve.assignments;
         state.onExactSolution?.(bestAssignments, bestValue, upperBound, relativeGap(bestValue, upperBound));
       }
       const gap = relativeGap(bestValue, upperBound);
       state.onProgress({ phase: state.phase, determinate: false, completed: 0, total: 1, nodes: totalNodes, upperBound, relativeGap: gap, elapsedMs: performance.now() - state.startedAt });
-      if (solve.optimal && gap != null && gap <= PROOF_RELATIVE_GAP) {
-        return { assignments: bestAssignments, value: bestValue, upperBound, relativeGap: gap, nodes: totalNodes, iterations, optimal: true, points, vectors };
+      const certificate = certifyBound_(bestValue, upperBound, SOLVE_RELATIVE_GAP * 2);
+      if (solve.optimal && certificate) {
+        validateFarmAssignments_(context, bestAssignments);
+        return { assignments: bestAssignments, value: bestValue, ...certificate, nodes: totalNodes, iterations, optimal: true, points, vectors };
       }
       const added = addUniquePoint_(points, candidateTotals);
       if (added.length === 0) {
@@ -705,6 +827,7 @@ async function solveConcave_(highs, context, parameters, state) {
   }
 }
 
+// Improve a secondary reward while preserving the required main score.
 async function solveLinearWithConcaveMinimum_(highs, context, parameters, state) {
   const points = [];
   (parameters.initialPoints || []).forEach(point => addUniqueResourcePoint_(points, point));
@@ -724,16 +847,18 @@ async function solveLinearWithConcaveMinimum_(highs, context, parameters, state)
     linearMinimums: parameters.linearMinimums || [],
     nonlinearMinimums: [minimum]
   });
-  const model = highs.createModel(data);
+  const model = highs.createModel();
   try {
     configureModel_(model, state);
+    model.passModel(data);
     while (true) {
       iterations++;
       const solve = await solveExistingModel_(highs, context, model, layout, {
         ...state,
         nodeOffset: totalNodes,
+        // Keep useful allocations found during this search stage.
         onSolution(assignments, bound, gap) {
-          if (parameters.primaryExactValue(assignments) + NUMERIC_EPSILON >= parameters.minimumValue) {
+          if (parameters.primaryExactValue(assignments) >= parameters.minimumValue * (1 - BOUND_ROUNDOFF)) {
             state.onExactSolution?.(assignments, linearValue_(context, assignments, parameters.secondaryRunCosts), bound, gap);
           }
         }
@@ -741,7 +866,7 @@ async function solveLinearWithConcaveMinimum_(highs, context, parameters, state)
       if (!solve.optimal) throw new Error("HiGHS stopped before reaching the configured linear optimality tolerance.");
       totalNodes += solve.nodes;
       const primaryValue = parameters.primaryExactValue(solve.assignments);
-      if (primaryValue + NUMERIC_EPSILON >= parameters.minimumValue) {
+      if (primaryValue >= parameters.minimumValue * (1 - BOUND_ROUNDOFF)) {
         return { ...solve, nodes: totalNodes, iterations, optimal: true, points };
       }
       const totals = resourceTotalsFromAssignments_(context, solve.assignments);
@@ -755,15 +880,12 @@ async function solveLinearWithConcaveMinimum_(highs, context, parameters, state)
   }
 }
 
-function primaryTolerance_(value) {
-  return PROOF_RELATIVE_GAP * Math.max(1, Math.abs(value));
+// Set the smallest main score allowed during tie-breaking.
+function primaryMinimum_(value) {
+  return value * (1 - SOLVE_RELATIVE_GAP);
 }
 
-function primaryMinimum_(value, upperBound) {
-  if (!Number.isFinite(upperBound)) return value;
-  return Math.min(value, upperBound - primaryTolerance_(upperBound));
-}
-
+// Collect the solver version and work counts for the result.
 function solverStats_(highs, state) {
   return {
     engine: "HiGHS WebAssembly",
@@ -773,6 +895,7 @@ function solverStats_(highs, state) {
   };
 }
 
+// Run Overkill, check its accuracy, and return the best complete allocation.
 export async function optimizeCrazy(rawInput, options = {}) {
   const { input, errors } = validateInput(rawInput);
   if (errors.length) throw new OptimizerValidationError(errors);
@@ -789,12 +912,15 @@ export async function optimizeCrazy(rawInput, options = {}) {
     selectedFarmMissions: effectiveSeedFarms,
     selectedCampaignFarmMissions: effectiveSeedFarms
   });
+  // Use the caller's progress handler, or ignore updates when none is supplied.
   const onProgress = options.onProgress || (() => {});
+  // Use the caller's handler for saving complete allocations during the search.
   const onCheckpoint = options.onCheckpoint || (() => {});
   const startedAt = performance.now();
   const context = buildContext_(input);
 
   const standard = optimize({ ...input, searchEffort: "standard" }, {
+    // Forward the starting search's progress under its own phase name.
     onProgress(progress) { onProgress({ ...progress, phase: `standard-${progress.phase}`, elapsedMs: performance.now() - startedAt }); }
   });
   let checkpointAssignments = farmAssignmentsFromResult_(standard);
@@ -803,7 +929,7 @@ export async function optimizeCrazy(rawInput, options = {}) {
     solutionStatus: "best-found",
     upperBound: null,
     relativeGap: null,
-    solverStats: { engine: "CIFI heuristic", version: "3.0.1", nodes: 0, iterations: standard.solverStats?.iterations || 0 },
+    solverStats: { engine: "CIFI heuristic", version: "3.0.2", nodes: 0, iterations: standard.solverStats?.iterations || 0 },
     hybridIdeals: standard.hybridIdeals,
     seed
   });
@@ -834,6 +960,7 @@ export async function optimizeCrazy(rawInput, options = {}) {
   let primaryGap = 0;
   const kind = getModeKind(input.mode);
 
+  // Save an improved complete allocation in case the search stops early.
   const checkpoint = (assignments, upperBound = primaryUpperBound, gap = primaryGap) => {
     const summary = evaluateFarmAssignments_(context, assignments).summary;
     if (compareSummaries(input.mode, summary, checkpointSummary, hybridIdeals) <= 0) return;
@@ -848,9 +975,11 @@ export async function optimizeCrazy(rawInput, options = {}) {
       seed
     }));
   };
+  // Prepare the shared settings for the next search stage.
   const commonState = phase => ({ seed: solverSeed, phase, startedAt, onProgress, warmAssignments: checkpointAssignments });
 
   let finalAssignments = checkpointAssignments;
+  let primaryAssignments = checkpointAssignments;
   if (kind === "academy" || kind === "completions") {
     const primaryCosts = runCosts_(context, kind);
     const primary = await solveLinear_(highs, context, primaryCosts, {
@@ -859,9 +988,10 @@ export async function optimizeCrazy(rawInput, options = {}) {
     });
     aggregate.nodes += primary.nodes; aggregate.iterations++;
     const primaryValue = linearValue_(context, primary.assignments, primaryCosts);
+    primaryAssignments = primary.assignments;
     primaryUpperBound = primary.dualBound;
     primaryGap = relativeGap(primaryValue, primaryUpperBound) || 0;
-    const primaryMinimums = [{ runCosts: primaryCosts, value: primaryMinimum_(primaryValue, primaryUpperBound) }];
+    const primaryMinimums = [{ runCosts: primaryCosts, value: primaryMinimum_(primaryValue) }];
     const secondaryKind = kind === "academy" ? "completions" : "fragments";
     const secondaryCosts = runCosts_(context, secondaryKind);
     const secondary = await solveLinear_(highs, context, secondaryCosts, {
@@ -878,7 +1008,7 @@ export async function optimizeCrazy(rawInput, options = {}) {
         onSolution: assignments => checkpoint(assignments, primaryUpperBound, primaryGap)
       }, [
         ...primaryMinimums,
-        { runCosts: secondaryCosts, value: primaryMinimum_(secondaryValue, secondary.dualBound) }
+        { runCosts: secondaryCosts, value: primaryMinimum_(secondaryValue) }
       ]);
       aggregate.nodes += tertiary.nodes; aggregate.iterations++;
       finalAssignments = tertiary.assignments;
@@ -893,11 +1023,12 @@ export async function optimizeCrazy(rawInput, options = {}) {
     });
     aggregate.nodes += primary.nodes; aggregate.iterations++;
     const fragmentIdeal = linearValue_(context, primary.assignments, fragmentCosts);
+    primaryAssignments = primary.assignments;
     primaryUpperBound = primary.dualBound;
     primaryGap = relativeGap(fragmentIdeal, primaryUpperBound) || 0;
     const secondary = await solveConcave_(highs, context, {
       runCosts: {}, utilityFactor: 1,
-      linearMinimums: [{ runCosts: fragmentCosts, value: primaryMinimum_(fragmentIdeal, primaryUpperBound) }],
+      linearMinimums: [{ runCosts: fragmentCosts, value: primaryMinimum_(fragmentIdeal) }],
       exactValue: assignments => evaluateFarmAssignments_(context, assignments).summary.resourceUtility
     }, {
       ...commonState("crazy-tiebreak"), warmAssignments: primary.assignments,
@@ -907,9 +1038,9 @@ export async function optimizeCrazy(rawInput, options = {}) {
     const tertiary = await solveLinearWithConcaveMinimum_(highs, context, {
       primaryRunCosts: {}, primaryUtilityFactor: 1,
       primaryExactValue: assignments => evaluateFarmAssignments_(context, assignments).summary.resourceUtility,
-      minimumValue: primaryMinimum_(secondary.value, secondary.upperBound),
+      minimumValue: primaryMinimum_(secondary.value),
       secondaryRunCosts: runCosts_(context, "completions"),
-      linearMinimums: [{ runCosts: fragmentCosts, value: primaryMinimum_(fragmentIdeal, primaryUpperBound) }],
+      linearMinimums: [{ runCosts: fragmentCosts, value: primaryMinimum_(fragmentIdeal) }],
       initialPoints: secondary.vectors
     }, {
       ...commonState("crazy-utilisation"), warmAssignments: secondary.assignments,
@@ -926,12 +1057,13 @@ export async function optimizeCrazy(rawInput, options = {}) {
       onExactSolution: (assignments, value, bound, gap) => checkpoint(assignments, bound, gap)
     });
     aggregate.nodes += primary.nodes; aggregate.iterations += primary.iterations;
+    primaryAssignments = primary.assignments;
     primaryUpperBound = primary.upperBound;
     primaryGap = primary.relativeGap;
     const secondary = await solveLinearWithConcaveMinimum_(highs, context, {
       primaryRunCosts: {}, primaryUtilityFactor: 1,
       primaryExactValue: assignments => evaluateFarmAssignments_(context, assignments).summary.resourceUtility,
-      minimumValue: primaryMinimum_(primary.value, primaryUpperBound),
+      minimumValue: primaryMinimum_(primary.value),
       secondaryRunCosts: runCosts_(context, "fragments"),
       initialPoints: primary.vectors
     }, {
@@ -944,9 +1076,9 @@ export async function optimizeCrazy(rawInput, options = {}) {
     const tertiary = await solveLinearWithConcaveMinimum_(highs, context, {
       primaryRunCosts: {}, primaryUtilityFactor: 1,
       primaryExactValue: assignments => evaluateFarmAssignments_(context, assignments).summary.resourceUtility,
-      minimumValue: primaryMinimum_(primary.value, primaryUpperBound),
+      minimumValue: primaryMinimum_(primary.value),
       secondaryRunCosts: runCosts_(context, "completions"),
-      linearMinimums: [{ runCosts: fragmentCosts, value: primaryMinimum_(secondaryValue, secondary.dualBound) }],
+      linearMinimums: [{ runCosts: fragmentCosts, value: primaryMinimum_(secondaryValue) }],
       initialPoints: [...primary.vectors, ...secondary.points]
     }, {
       ...commonState("crazy-utilisation"), warmAssignments: secondary.assignments,
@@ -967,24 +1099,31 @@ export async function optimizeCrazy(rawInput, options = {}) {
     const resourceIdeal = resourceIdealSolve.value;
     const fragmentWeight = input.hybridFragmentPercent / 100;
     const resourceWeight = 1 - fragmentWeight;
-    hybridIdeals = { fragments: fragmentIdeal, resourceUtility: resourceIdeal, fragmentWeight, resourceWeight, proven: true };
+    hybridIdeals = {
+      fragments: fragmentIdeal, resourceUtility: resourceIdeal, fragmentWeight, resourceWeight,
+      fragmentUpperBound: fragmentIdealSolve.dualBound,
+      resourceUpperBound: resourceIdealSolve.upperBound,
+      proven: true
+    };
 
     let fragmentFactor = 0;
     let utilityFactor = 0;
-    if (fragmentIdeal <= NUMERIC_EPSILON && resourceIdeal <= NUMERIC_EPSILON) {
+    if (fragmentIdeal === 0 && resourceIdeal === 0) {
       const completion = await solveLinear_(highs, context, runCosts_(context, "completions"), {
         ...commonState("crazy-primary"),
         onSolution: assignments => checkpoint(assignments)
       });
       aggregate.nodes += completion.nodes; aggregate.iterations++;
       finalAssignments = completion.assignments;
+      primaryAssignments = completion.assignments;
       primaryUpperBound = completion.dualBound;
       primaryGap = relativeGap(linearValue_(context, finalAssignments, runCosts_(context, "completions")), primaryUpperBound) || 0;
     } else {
-      if (fragmentIdeal <= NUMERIC_EPSILON) utilityFactor = 1 / resourceIdeal;
-      else if (resourceIdeal <= NUMERIC_EPSILON) fragmentFactor = 1 / fragmentIdeal;
+      if (fragmentIdeal === 0) utilityFactor = 1 / resourceIdeal;
+      else if (resourceIdeal === 0) fragmentFactor = 1 / fragmentIdeal;
       else { fragmentFactor = fragmentWeight / fragmentIdeal; utilityFactor = resourceWeight / resourceIdeal; }
       const hybridRunCosts = Object.fromEntries(context.missions.map(mission => [mission.name, fragmentFactor * mission.fragmentYield]));
+      // Calculate the hybrid score from the allocation's actual rewards.
       const exactHybrid = assignments => normalizedHybridScore(evaluateFarmAssignments_(context, assignments).summary, hybridIdeals);
       const primary = utilityFactor > 0
         ? await solveConcave_(highs, context, { runCosts: hybridRunCosts, utilityFactor, exactValue: exactHybrid }, {
@@ -997,6 +1136,7 @@ export async function optimizeCrazy(rawInput, options = {}) {
           });
       aggregate.nodes += primary.nodes; aggregate.iterations += primary.iterations || 1;
       const primaryValue = exactHybrid(primary.assignments);
+      primaryAssignments = primary.assignments;
       primaryUpperBound = primary.upperBound ?? primary.dualBound;
       primaryGap = primary.relativeGap ?? relativeGap(primaryValue, primaryUpperBound) ?? 0;
       if (utilityFactor > 0) {
@@ -1004,7 +1144,7 @@ export async function optimizeCrazy(rawInput, options = {}) {
           primaryRunCosts: hybridRunCosts,
           primaryUtilityFactor: utilityFactor,
           primaryExactValue: exactHybrid,
-          minimumValue: primaryMinimum_(primaryValue, primaryUpperBound),
+          minimumValue: primaryMinimum_(primaryValue),
           secondaryRunCosts: runCosts_(context, "completions"),
           initialPoints: primary.vectors
         }, {
@@ -1016,13 +1156,17 @@ export async function optimizeCrazy(rawInput, options = {}) {
       } else {
         const secondary = await solveLinear_(highs, context, runCosts_(context, "completions"), {
           ...commonState("crazy-tiebreak"), warmAssignments: primary.assignments
-        }, [{ runCosts: hybridRunCosts, value: primaryMinimum_(primaryValue, primaryUpperBound) }]);
+        }, [{ runCosts: hybridRunCosts, value: primaryMinimum_(primaryValue) }]);
         aggregate.nodes += secondary.nodes; aggregate.iterations++;
         finalAssignments = secondary.assignments;
       }
     }
   }
 
+  for (const candidate of [primaryAssignments, checkpointAssignments]) {
+    if (compareSummaries(input.mode, evaluateFarmAssignments_(context, candidate).summary,
+      evaluateFarmAssignments_(context, finalAssignments).summary, hybridIdeals, 0) > 0) finalAssignments = candidate;
+  }
   const finalSummary = evaluateFarmAssignments_(context, finalAssignments).summary;
   const finalPrimary = describeObjective(input.mode, finalSummary, hybridIdeals).primaryValue;
   primaryGap = relativeGap(finalPrimary, primaryUpperBound) ?? primaryGap;
@@ -1034,7 +1178,7 @@ export async function optimizeCrazy(rawInput, options = {}) {
     hybridIdeals,
     seed
   });
-  onProgress({ phase: "complete", determinate: true, completed: 1, total: 1, nodes: aggregate.nodes, upperBound: primaryUpperBound, relativeGap: primaryGap, elapsedMs: performance.now() - startedAt });
+  onProgress({ phase: "complete", determinate: true, completed: 1, total: 1, nodes: aggregate.nodes, upperBound: result.objective.upperBound, relativeGap: result.objective.relativeGap, elapsedMs: performance.now() - startedAt });
   return result;
 }
 
@@ -1044,5 +1188,6 @@ export {
   maxResourceTotals_ as maxResourceTotalsForTest,
   missionRunUpperBound_ as missionRunUpperBoundForTest,
   rebalanceFarmAssignments_ as rebalanceCrazyAssignmentsForTest,
-  workerMissionUpperBound_ as workerMissionUpperBoundForTest
+  workerMissionUpperBound_ as workerMissionUpperBoundForTest,
+  certifyBound_ as certifyBoundForTest
 };

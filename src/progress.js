@@ -14,6 +14,7 @@ const PHASE_LABELS = Object.freeze({
   complete: "Completing…"
 });
 
+// Display elapsed time in seconds, minutes, and hours.
 export function formatDuration(milliseconds) {
   if (!Number.isFinite(milliseconds) || milliseconds < 0) return "—";
   const totalSeconds = Math.floor(milliseconds / 1000);
@@ -26,11 +27,13 @@ export function formatDuration(milliseconds) {
   return `${seconds}s`;
 }
 
+// Format the number of search steps, or hide it when unavailable.
 export function formatNodeCount(nodes) {
   if (!Number.isFinite(nodes) || nodes < 0) return null;
   return new Intl.NumberFormat("en-AU", { maximumFractionDigits: 0 }).format(Math.floor(nodes));
 }
 
+// Display the remaining accuracy gap as a percentage.
 export function formatRelativeGap(relativeGap) {
   if (!Number.isFinite(relativeGap) || relativeGap < 0) return null;
   const percent = relativeGap * 100;
@@ -39,6 +42,7 @@ export function formatRelativeGap(relativeGap) {
   return `${new Intl.NumberFormat("en-AU", { maximumFractionDigits }).format(percent)}%`;
 }
 
+// Turn a progress update into labels and progress-bar values.
 export function buildProgressView(progress = {}) {
   const phase = String(progress.phase || "");
   const basePhase = phase.replace(/^standard-/, "");
