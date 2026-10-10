@@ -32,6 +32,28 @@ class FakeWorker {
   }
 }
 
+test("a solver failure preserves its result and starts the next run in a fresh worker", async () => {
+  const workers = [];
+  const client = new OptimizerWorkerClient(() => {
+    const worker = new FakeWorker();
+    workers.push(worker);
+    return worker;
+  });
+  const run = client.run({});
+  const result = { solutionStatus: "best-found", assignments: [], notices: ["Aborted()"] };
+  workers[0].emitMessage({ type: "result", requestId: workers[0].messages[0].requestId, resetWorker: true, result });
+  assert.deepEqual(await run, result);
+  assert.equal(workers[0].terminated, true);
+  const next = client.run({});
+  assert.equal(workers.length, 2);
+  workers[0].listeners.get("error")();
+  workers[0].emitMessage({ type: "result", requestId: workers[0].messages[0].requestId, result });
+  assert.equal(client.isRunning, true);
+  workers[1].emitMessage({ type: "result", requestId: workers[1].messages[0].requestId, result: { solutionStatus: "tolerance-met" } });
+  assert.equal((await next).solutionStatus, "tolerance-met");
+  client.dispose();
+});
+
 test("cancelling before a checkpoint rejects and terminates the worker", async () => {
   const worker = new FakeWorker();
   const client = new OptimizerWorkerClient(() => worker);

@@ -32,9 +32,14 @@ export class OptimizerWorkerClient {
   // Start the background worker if one is not already available.
   ensureWorker() {
     if (this.worker) return this.worker;
-    this.worker = this.workerFactory();
-    this.worker.addEventListener("message", event => this.handleMessage(event.data || {}));
-    this.worker.addEventListener("error", () => this.fail(new OptimizerWorkerError({ message: "The background optimiser stopped unexpectedly." })));
+    const worker = this.workerFactory();
+    this.worker = worker;
+    worker.addEventListener("message", event => {
+      if (this.worker === worker) this.handleMessage(event.data || {});
+    });
+    worker.addEventListener("error", () => {
+      if (this.worker === worker) this.fail(new OptimizerWorkerError({ message: "The background optimiser stopped unexpectedly." }));
+    });
     return this.worker;
   }
 
@@ -64,6 +69,10 @@ export class OptimizerWorkerClient {
     if (message.type === "result") {
       const { resolve } = this.active;
       this.active = null;
+      if (message.resetWorker) {
+        this.worker?.terminate();
+        this.worker = null;
+      }
       resolve(message.result);
     } else if (message.type === "error") {
       this.fail(new OptimizerWorkerError(message.error));

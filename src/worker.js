@@ -1,5 +1,5 @@
-import { optimize, OptimizerValidationError } from "./optimizer.js?v=3.0.2";
-import { optimizeCrazy } from "./crazy-optimizer.js?v=3.0.2";
+import { optimize, OptimizerValidationError } from "./optimizer.js?v=3.0.3";
+import { optimizeCrazy } from "./crazy-optimizer.js?v=3.0.3";
 
 // Run search requests and send progress, results, or errors back to the page.
 self.addEventListener("message", async event => {
@@ -33,6 +33,7 @@ self.addEventListener("message", async event => {
       self.postMessage({
         type: "result",
         requestId,
+        resetWorker: true,
         result: {
           ...latestCheckpoint,
           solutionStatus: "best-found",

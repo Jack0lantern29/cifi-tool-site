@@ -2,20 +2,20 @@ import {
   ALL_FARM_MISSIONS,
   MATS,
   TYPE_ORDER
-} from "./src/data.js?v=3.0.2";
-import { canonicalStringify } from "./src/random.js?v=3.0.2";
-import { buildProgressView, formatDuration } from "./src/progress.js?v=3.0.2";
-import { clearState, loadState, saveState } from "./src/state.js?v=3.0.2";
-import { OptimizerCancelledError, OptimizerWorkerClient } from "./src/worker-client.js?v=3.0.2";
+} from "./src/data.js?v=3.0.3";
+import { canonicalStringify } from "./src/random.js?v=3.0.3";
+import { buildProgressView, formatDuration, formatSolverUpdateAge, formatSolverWork } from "./src/progress.js?v=3.0.3";
+import { clearState, loadState, saveState } from "./src/state.js?v=3.0.3";
+import { OptimizerCancelledError, OptimizerWorkerClient } from "./src/worker-client.js?v=3.0.3";
 import {
   createDefaultInput,
   getAvailableModes,
   getVisibleCampaignNames,
   getVisibleFarmNames,
   validateInput
-} from "./src/validation.js?v=3.0.2";
+} from "./src/validation.js?v=3.0.3";
 
-const APP_VERSION = "3.0.2";
+const APP_VERSION = "3.0.3";
 const elements = new Map();
 // Find a page element and remember it for later use.
 const byId = id => {
@@ -39,9 +39,11 @@ let suppressNextCancellationStatus = false;
 let progressTimer = null;
 let progressStartedAt = null;
 let latestProgress = null;
+let lastSolverUpdateAt = null;
+let lastSolverUpdate = 0;
 const workerClient = new OptimizerWorkerClient(() => {
   if (!window.Worker) throw new Error("This browser does not support background optimisation.");
-  return new Worker(new URL("./src/worker.js?v=3.0.2", import.meta.url), { type: "module" });
+  return new Worker(new URL("./src/worker.js?v=3.0.3", import.meta.url), { type: "module" });
 });
 
 // Show the selected tab and optionally move focus to it.
@@ -354,16 +356,25 @@ function renderProgress(updateStatus = false) {
   }
 
   const telemetry = [];
-  if (view.gapText != null) telemetry.push(`Optimality gap ${view.gapText}`);
-  if (view.nodeText != null) telemetry.push(`Nodes searched ${view.nodeText}`);
+  const solverWork = formatSolverWork(latestProgress);
+  if (solverWork) telemetry.push(solverWork);
+  if (view.gapText != null) telemetry.push(`Optimality gap (current step) ${view.gapText}`);
+  if (!solverWork && view.nodeText != null) telemetry.push(`Nodes searched ${view.nodeText}`);
   if (telemetry.length === 0 && view.determinate) {
     telemetry.push(`${Math.round(view.completed / view.total * 100)}% of current phase`);
   }
-  byId("runProgressTelemetry").textContent = telemetry.join(" · ") || "Waiting for solver telemetry…";
+  byId("runProgressTelemetry").textContent = telemetry.join(" · ") || view.phaseLabel;
+  const activity = byId("runProgressActivity");
+  activity.hidden = !latestProgress.solverSearch;
+  activity.textContent = formatSolverUpdateAge(lastSolverUpdateAt == null ? null : performance.now() - lastSolverUpdateAt);
 }
 
 // Store the latest progress and display it.
 function updateProgress(progress) {
+  if (Number.isFinite(progress.solverUpdate) && progress.solverUpdate > lastSolverUpdate) {
+    lastSolverUpdate = progress.solverUpdate;
+    lastSolverUpdateAt = performance.now();
+  }
   latestProgress = { ...progress };
   renderProgress(true);
 }
@@ -374,6 +385,8 @@ function stopProgress() {
   progressTimer = null;
   progressStartedAt = null;
   latestProgress = null;
+  lastSolverUpdateAt = null;
+  lastSolverUpdate = 0;
   setRunning(false);
 }
 
@@ -383,7 +396,7 @@ function startProgress() {
   progressStartedAt = performance.now();
   setRunning(true);
   updateProgress({ phase: "preparing", determinate: true, completed: 0, total: 1 });
-  progressTimer = window.setInterval(() => renderProgress(false), 1000);
+  progressTimer = window.setInterval(() => renderProgress(false), 250);
 }
 
 // Check inputs, start the search, and display its result or error.

@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=3.0.2" />
+  <link rel="stylesheet" href="styles.css?v=3.0.3" />
 </head>
 <body>
   <noscript><div class="noscript-notice">JavaScript is required to run the mission optimizer.</div></noscript>
@@ -68,7 +68,8 @@
             <span id="runProgressElapsed">Elapsed 0s</span>
           </div>
           <progress id="optimizerProgress" class="optimizer-progress" max="1" value="0" aria-label="Optimizer progress">0%</progress>
-          <div id="runProgressTelemetry" class="run-progress-telemetry">Waiting for solver telemetry…</div>
+          <div id="runProgressTelemetry" class="run-progress-telemetry">Preparing…</div>
+          <div id="runProgressActivity" class="run-progress-telemetry" hidden></div>
         </div>
 
         <div id="hybridWeightControl" class="hybrid-weight-control ouro-only hybrid-mode-only hidden" aria-hidden="true">
@@ -429,6 +430,10 @@
 
         <div class="changelog-list">
           <div class="changelog-item">
+            <span class="tag">v3.0.3 Overkill Progress</span>
+            <p>Added solver activity updates and improved recovery after solver errors.</p>
+          </div>
+          <div class="changelog-item">
             <span class="tag">v3.0.2 Overkill Accuracy Fix</span>
             <p>Improved Overkill accuracy and fixed fragment and hybrid optimisation.</p>
           </div>
@@ -464,6 +469,6 @@
     </section>
   </main>
 
-  <script type="module" src="script.js?v=3.0.2"></script>
+  <script type="module" src="script.js?v=3.0.3"></script>
 </body>
 </html>

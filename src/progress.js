@@ -33,6 +33,25 @@ export function formatNodeCount(nodes) {
   return new Intl.NumberFormat("en-AU", { maximumFractionDigits: 0 }).format(Math.floor(nodes));
 }
 
+// Show how long it has been since the solver last reported real work.
+export function formatSolverUpdateAge(milliseconds) {
+  if (!Number.isFinite(milliseconds) || milliseconds < 0) return "No solver update yet";
+  const age = milliseconds < 1000 ? `${(milliseconds / 1000).toFixed(1)}s` : formatDuration(milliseconds);
+  return `Last solver update ${age} ago`;
+}
+
+// Label work counts for the current search, which reset for each new search.
+export function formatSolverWork(progress) {
+  if (!progress.solverSearch) return null;
+  const details = [`Search ${progress.solverSearch}`, progress.solverStage];
+  const nodes = formatNodeCount(progress.solverNodes);
+  const iterations = formatNodeCount(progress.solverIterations);
+  if (nodes !== null) details.push(`${nodes} nodes`);
+  if (iterations !== null) details.push(`${iterations} LP iterations`);
+  if (nodes !== null || iterations !== null) details.push("counts for this search");
+  return details.filter(Boolean).join(" · ");
+}
+
 // Display the remaining accuracy gap as a percentage.
 export function formatRelativeGap(relativeGap) {
   if (!Number.isFinite(relativeGap) || relativeGap < 0) return null;

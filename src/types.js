@@ -19,7 +19,7 @@
  * }} OptimizerInput
  * @typedef {{ name: string, type: string, count: number }} Assignment
  * @typedef {{ field: string, message: string }} ValidationError
- * @typedef {{ phase: string, determinate: boolean, completed: number, total: number, elapsedMs?: number, nodes?: number, upperBound?: number, relativeGap?: number }} OptimizerProgress
+ * @typedef {{ phase: string, determinate: boolean, completed: number, total: number, elapsedMs?: number, nodes?: number, upperBound?: number, relativeGap?: number | null, solverSearch?: number, solverStage?: string, solverNodes?: number | null, solverIterations?: number | null, solverUpdate?: number }} OptimizerProgress
  * @typedef {{
  *   assignments: Assignment[],
  *   unassignedWorkers: Record<string, number>,

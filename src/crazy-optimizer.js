@@ -6,7 +6,7 @@ import {
   OURO_OFF_VISIBLE_FARMS,
   TYPE_ORDER,
   TYPE_RANK
-} from "./data.js?v=3.0.2";
+} from "./data.js?v=3.0.3";
 import {
   compareSummaries,
   describeObjective,
@@ -15,10 +15,12 @@ import {
   PROOF_RELATIVE_GAP,
   relativeGap,
   summaryFromTotals
-} from "./objective.js?v=3.0.2";
-import { optimize, OptimizerValidationError } from "./optimizer.js?v=3.0.2";
-import { deriveSeed, formatRunId } from "./random.js?v=3.0.2";
-import { calculateGlobalSpeedMultiplier, validateInput } from "./validation.js?v=3.0.2";
+} from "./objective.js?v=3.0.3";
+import { optimize, OptimizerValidationError } from "./optimizer.js?v=3.0.3";
+import { deriveSeed, formatRunId } from "./random.js?v=3.0.3";
+import { calculateGlobalSpeedMultiplier, validateInput } from "./validation.js?v=3.0.3";
+import { createSolverProgress } from "./solver-progress.js?v=3.0.3";
+import { buildProgressView } from "./progress.js?v=3.0.3";
 
 const MAX_RUNS_PER_HOUR = 1800;
 const NUMERIC_EPSILON = 1e-9;
@@ -27,16 +29,23 @@ const BOUND_ROUNDOFF = 1e-9;
 const SOLVER_PACKAGE_VERSION = "1.15.3-pre.4";
 
 let highsPromise;
+const solverDiagnostics = [];
+
+// Keep a small amount of solver error output to explain unexpected failures.
+function recordSolverDiagnostic_(message) {
+  solverDiagnostics.push(String(message).slice(0, 500));
+  if (solverDiagnostics.length > 8) solverDiagnostics.shift();
+}
 
 // Load the Overkill solver once and reuse it for later runs.
 async function loadSolver_() {
   if (!highsPromise) {
-    highsPromise = import("../vendor/highs/highs.mjs?v=3.0.2").then(({ default: loadHighs }) => loadHighs({
+    highsPromise = import("../vendor/highs/highs.mjs?v=3.0.3").then(({ default: loadHighs }) => loadHighs({
       locateFile: file => file.endsWith(".wasm")
-        ? new URL("../vendor/highs/highs.wasm?v=3.0.2", import.meta.url).href
+        ? new URL("../vendor/highs/highs.wasm?v=3.0.3", import.meta.url).href
         : file,
       print: () => {},
-      printErr: () => {}
+      printErr: recordSolverDiagnostic_
     }));
   }
   return highsPromise;
@@ -589,31 +598,29 @@ function configureModel_(model, state) {
 
 // Run a prepared model and collect allocations, progress, and bounds.
 async function solveExistingModel_(highs, context, model, layout, state) {
-  let latestProgress = 0;
+  state.activity.start(state.phase);
   if (state.warmAssignments?.length) {
     model.setSolution({ colValue: vectorFromAssignments_(context, layout, state.warmAssignments) });
   }
   const callbackType = highs.constants.callbackType;
   model.run({
     [callbackType.mipImprovingSolution](event) {
+      state.activity.report(event.data, "Improving allocation");
       if (!event.data.mip_solution) return;
       const assignments = assignmentsFromVector_(context, layout, event.data.mip_solution);
       state.onSolution?.(assignments, event.data.mip_dual_bound / layout.objectiveScale, event.data.mip_gap);
     },
     [callbackType.mipLogging](event) {
-      const now = performance.now();
-      if (now - latestProgress < 200) return;
-      latestProgress = now;
-      state.onProgress({
-        phase: state.phase,
-        determinate: false,
-        completed: 0,
-        total: 1,
-        nodes: (state.nodeOffset || 0) + Number(event.data.mip_node_count || 0n),
-        upperBound: event.data.mip_dual_bound / layout.objectiveScale,
-        relativeGap: event.data.mip_gap,
-        elapsedMs: now - state.startedAt
-      });
+      state.activity.report(event.data, "Searching allocations");
+    },
+    [callbackType.mipInterrupt](event) {
+      state.activity.report(event.data, "Searching allocations");
+    },
+    [callbackType.simplexInterrupt]() {
+      state.activity.report({}, "Checking score bounds");
+    },
+    [callbackType.ipmInterrupt]() {
+      state.activity.report({}, "Checking score bounds");
     }
   });
   const status = model.getModelStatus();
@@ -626,6 +633,11 @@ async function solveExistingModel_(highs, context, model, layout, state) {
   const objective = model.getObjectiveValue() / layout.objectiveScale;
   const nodes = safeInfo_(model, "mip_node_count", 0);
   const dualBound = safeInfo_(model, "mip_dual_bound", NaN) / layout.objectiveScale;
+  state.activity.report({
+    mip_node_count: nodes,
+    mip_total_lp_iterations: safeInfo_(model, "simplex_iteration_count", NaN),
+    mip_gap: safeInfo_(model, "mip_gap", NaN)
+  }, "Checking search result", true);
   return { assignments, objective, dualBound, nodes, status, optimal: status === highs.constants.modelStatus.optimal };
 }
 
@@ -897,6 +909,30 @@ function solverStats_(highs, state) {
 
 // Run Overkill, check its accuracy, and return the best complete allocation.
 export async function optimizeCrazy(rawInput, options = {}) {
+  solverDiagnostics.length = 0;
+  let phase = "preparing";
+  try {
+    return await optimizeCrazy_(rawInput, {
+      ...options,
+      // Remember where the solver stopped if it fails unexpectedly.
+      onProgress(progress) {
+        phase = buildProgressView(progress).phaseLabel;
+        options.onProgress?.(progress);
+      }
+    });
+  } catch (error) {
+    if (error instanceof OptimizerValidationError) throw error;
+    highsPromise = undefined;
+    if (/abort|wasm|memory access/i.test(error?.message || "")) {
+      const details = solverDiagnostics.filter(message => !message.includes("Build with -sASSERTIONS"));
+      throw new Error(`${error.message} Stage: ${phase}.${details.length ? ` Solver details: ${details.join(" ")}` : ""}`, { cause: error });
+    }
+    throw error;
+  }
+}
+
+// Find an allocation and verify it against the requested accuracy target.
+async function optimizeCrazy_(rawInput, options = {}) {
   const { input, errors } = validateInput(rawInput);
   if (errors.length) throw new OptimizerValidationError(errors);
   const seedInput = { ...input, selectedFarmMissions: [...input.selectedFarmMissions].sort(), selectedCampaignFarmMissions: [...input.selectedCampaignFarmMissions].sort() };
@@ -929,7 +965,7 @@ export async function optimizeCrazy(rawInput, options = {}) {
     solutionStatus: "best-found",
     upperBound: null,
     relativeGap: null,
-    solverStats: { engine: "CIFI heuristic", version: "3.0.2", nodes: 0, iterations: standard.solverStats?.iterations || 0 },
+    solverStats: { engine: "CIFI heuristic", version: "3.0.3", nodes: 0, iterations: standard.solverStats?.iterations || 0 },
     hybridIdeals: standard.hybridIdeals,
     seed
   });
@@ -955,6 +991,7 @@ export async function optimizeCrazy(rawInput, options = {}) {
   onProgress({ phase: "loading-solver", determinate: false, completed: 0, total: 1, elapsedMs: performance.now() - startedAt });
   const highs = await loadSolver_();
   const aggregate = { nodes: 0, iterations: 0 };
+  const activity = createSolverProgress(onProgress, startedAt);
   let hybridIdeals = null;
   let primaryUpperBound = null;
   let primaryGap = 0;
@@ -976,7 +1013,11 @@ export async function optimizeCrazy(rawInput, options = {}) {
     }));
   };
   // Prepare the shared settings for the next search stage.
-  const commonState = phase => ({ seed: solverSeed, phase, startedAt, onProgress, warmAssignments: checkpointAssignments });
+  const commonState = phase => ({
+    seed: solverSeed, phase, startedAt, activity, warmAssignments: checkpointAssignments,
+    // Keep the last work counters while checking a search result.
+    onProgress(progress) { onProgress({ ...activity.progress, ...progress }); }
+  });
 
   let finalAssignments = checkpointAssignments;
   let primaryAssignments = checkpointAssignments;
