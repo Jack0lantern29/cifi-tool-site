@@ -88,7 +88,7 @@ test("numeric verification failure returns an explicitly unverified checkpoint",
   }
 });
 
-test("reported Fragments abort with Research 70 completes and verifies the tie-break", { timeout: 180000 }, async () => {
+test("reported Fragments settings finish with both decimal yields and the same allocation", { timeout: 240000 }, async () => {
   const client = new OptimizerWorkerClient(workerFactory);
   const input = createDefaultInput();
   Object.assign(input, { ouroUnlocked: true, searchEffort: "crazy", mode: "Fragments", fragmentsPerCompletion: 0.7974 });
@@ -100,19 +100,31 @@ test("reported Fragments abort with Research 70 completes and verifies the tie-b
     research58: 6, research70: 6, research80: 6, relic3: 55, ts07Enabled: true
   });
   try {
-    const events = [];
-    const result = await client.run(input, { onProgress: progress => events.push(progress) });
-    assert.equal(result.solutionStatus, "tolerance-met");
-    assert.ok(result.objective.relativeGap <= 0.00000002, "the main fragment goal retains its stricter accuracy");
-    assert.ok(Math.abs(result.objective.primaryValue - 388430.7111554865) < 0.001);
-    assert.ok(result.objective.secondaryValue >= 128.8313);
-    const tieBreak = events.filter(event => event.phase === "crazy-tiebreak").at(-1);
-    assert.ok(tieBreak.relativeGap >= 0 && tieBreak.relativeGap <= 0.000001, "the actual resource score meets the stated tolerance");
-    assert.ok(events.some(event => event.solverUpdate > 0 && event.solverStage !== "Starting search" && event.solverStage !== "Checking search result"));
-    assert.ok(events.some(event => event.solverNodes > 0));
-    assert.ok(events.some(event => event.solverIterations > 0));
-    const updates = events.filter(event => event.solverUpdate > 0);
-    assert.ok(updates.every((event, index) => index === 0 || event.solverUpdate >= updates[index - 1].solverUpdate));
+    let previous = null;
+    for (const fragments of [0.7974, 0.7974334]) {
+      input.fragmentsPerCompletion = fragments;
+      const events = [];
+      const result = await client.run(input, { onProgress: progress => events.push(progress) });
+      assert.equal(result.solutionStatus, "tolerance-met");
+      assert.ok(result.objective.relativeGap <= 0.00000002, "the main fragment goal retains its stricter accuracy");
+      const knownFragmentResult = 388430.7111554865 * fragments / 0.7974;
+      assert.ok(Math.abs(result.objective.primaryValue - knownFragmentResult) / knownFragmentResult <= 0.00000002);
+      assert.ok(result.objective.secondaryValue >= 128.8313);
+      const tieBreak = events.filter(event => event.phase === "crazy-tiebreak").at(-1);
+      assert.ok(tieBreak.relativeGap >= 0 && tieBreak.relativeGap <= 0.000001, "the actual resource score meets the stated tolerance");
+      assert.ok(events.some(event => event.solverUpdate > 0 && event.solverStage !== "Starting search" && event.solverStage !== "Checking search result"));
+      assert.ok(events.some(event => event.solverNodes > 0));
+      assert.ok(events.some(event => event.solverIterations > 0));
+      const updates = events.filter(event => event.solverUpdate > 0);
+      assert.ok(updates.every((event, index) => index === 0 || event.solverUpdate >= updates[index - 1].solverUpdate));
+      if (previous) {
+        assert.deepEqual(result.assignments, previous.assignments);
+        assert.equal(result.solverStats.nodes, previous.solverStats.nodes);
+        assert.notEqual(result.runId, previous.runId);
+        assert.ok(Math.abs(result.totals.Fragments / previous.totals.Fragments - fragments / 0.7974) < 1e-12);
+      }
+      previous = result;
+    }
   } finally {
     client.dispose();
   }

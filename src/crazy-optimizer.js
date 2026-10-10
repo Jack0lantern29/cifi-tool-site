@@ -6,7 +6,7 @@ import {
   OURO_OFF_VISIBLE_FARMS,
   TYPE_ORDER,
   TYPE_RANK
-} from "./data.js?v=3.0.4";
+} from "./data.js?v=3.0.5";
 import {
   compareSummaries,
   describeObjective,
@@ -15,12 +15,12 @@ import {
   PROOF_RELATIVE_GAP,
   relativeGap,
   summaryFromTotals
-} from "./objective.js?v=3.0.4";
-import { optimize, OptimizerValidationError } from "./optimizer.js?v=3.0.4";
-import { deriveSeed, formatRunId } from "./random.js?v=3.0.4";
-import { calculateGlobalSpeedMultiplier, validateInput } from "./validation.js?v=3.0.4";
-import { createSolverProgress } from "./solver-progress.js?v=3.0.4";
-import { buildProgressView } from "./progress.js?v=3.0.4";
+} from "./objective.js?v=3.0.5";
+import { optimize, OptimizerValidationError } from "./optimizer.js?v=3.0.5";
+import { deriveSeed, formatRunId } from "./random.js?v=3.0.5";
+import { calculateGlobalSpeedMultiplier, validateInput } from "./validation.js?v=3.0.5";
+import { createSolverProgress } from "./solver-progress.js?v=3.0.5";
+import { buildProgressView } from "./progress.js?v=3.0.5";
 
 const MAX_RUNS_PER_HOUR = 1800;
 const NUMERIC_EPSILON = 1e-9;
@@ -40,9 +40,9 @@ function recordSolverDiagnostic_(message) {
 // Load the Overkill solver once and reuse it for later runs.
 async function loadSolver_() {
   if (!highsPromise) {
-    highsPromise = import("../vendor/highs/highs.mjs?v=3.0.4").then(({ default: loadHighs }) => loadHighs({
+    highsPromise = import("../vendor/highs/highs.mjs?v=3.0.5").then(({ default: loadHighs }) => loadHighs({
       locateFile: file => file.endsWith(".wasm")
-        ? new URL("../vendor/highs/highs.wasm?v=3.0.4", import.meta.url).href
+        ? new URL("../vendor/highs/highs.wasm?v=3.0.5", import.meta.url).href
         : file,
       print: () => {},
       printErr: recordSolverDiagnostic_
@@ -266,7 +266,22 @@ function finalizeResult_(context, farmAssignments, metadata) {
   validateFarmAssignments_(context, farmAssignments);
   const finalFarmAssignments = rebalanceFarmAssignments_(context, farmAssignments, metadata.hybridIdeals);
   validateFarmAssignments_(context, finalFarmAssignments);
-  const { totals, summary } = evaluateFarmAssignments_(context, finalFarmAssignments);
+  const { totals } = evaluateFarmAssignments_(context, finalFarmAssignments);
+  // Restore the entered fragment yield in totals and proven bounds.
+  const fragmentScale = context.fragmentScale ?? 1;
+  totals.Fragments *= fragmentScale;
+  metadata = {
+    ...metadata,
+    upperBound: getModeKind(input.mode) === "fragments" && metadata.upperBound != null
+      ? metadata.upperBound * fragmentScale : metadata.upperBound,
+    hybridIdeals: metadata.hybridIdeals ? {
+      ...metadata.hybridIdeals,
+      fragments: metadata.hybridIdeals.fragments * fragmentScale,
+      ...(metadata.hybridIdeals.fragmentUpperBound != null
+        ? { fragmentUpperBound: metadata.hybridIdeals.fragmentUpperBound * fragmentScale } : {})
+    } : null
+  };
+  const summary = summaryFromTotals(totals, input.weights);
   const remaining = Object.fromEntries(TYPE_ORDER.map(type => [type, input.workers[type].count]));
   finalFarmAssignments.forEach(({ type, count }) => { remaining[type] -= count; });
 
@@ -610,6 +625,7 @@ function configureModel_(model, state) {
 // Run a prepared model and collect allocations, progress, and bounds.
 async function solveExistingModel_(highs, context, model, layout, state) {
   state.activity.start(state.phase);
+  let boundSatisfied = false;
   if (state.warmAssignments?.length) {
     model.setSolution({ colValue: vectorFromAssignments_(context, layout, state.warmAssignments) });
   }
@@ -626,6 +642,10 @@ async function solveExistingModel_(highs, context, model, layout, state) {
     },
     [callbackType.mipInterrupt](event) {
       state.activity.report(event.data, "Searching allocations");
+      if (state.hasCertifiedBound?.(event.data.mip_dual_bound / layout.objectiveScale)) {
+        boundSatisfied = true;
+        event.interrupt();
+      }
     },
     [callbackType.simplexInterrupt]() {
       state.activity.report({}, "Checking score bounds");
@@ -649,7 +669,7 @@ async function solveExistingModel_(highs, context, model, layout, state) {
     mip_total_lp_iterations: safeInfo_(model, "simplex_iteration_count", NaN),
     mip_gap: safeInfo_(model, "mip_gap", NaN)
   }, "Checking search result", true);
-  return { assignments, objective, dualBound, nodes, status, optimal: status === highs.constants.modelStatus.optimal };
+  return { assignments, objective, dualBound, nodes, status, boundSatisfied, optimal: status === highs.constants.modelStatus.optimal };
 }
 
 // Build and solve a model, then release its memory.
@@ -766,11 +786,23 @@ function addUniqueResourcePoint_(points, totals) {
 
 // Find and verify an allocation scored with fixed rewards per run.
 async function solveLinear_(highs, context, runCosts, state, linearMinimums = [], nonlinearMinimums = []) {
-  const result = await runModel_(highs, context, { runCosts, utilityFactor: 0, linearMinimums, nonlinearMinimums }, state);
-  if (!result.optimal) throw new Error("HiGHS stopped before reaching the configured linear optimality tolerance.");
+  const tolerance = Math.min(PROOF_RELATIVE_GAP, solveRelativeGap_(state) * 2);
+  let bestValue = null;
+  const result = await runModel_(highs, context, { runCosts, utilityFactor: 0, linearMinimums, nonlinearMinimums }, {
+    ...state,
+    // Stop only when a real allocation already meets the existing accuracy check.
+    hasCertifiedBound: bound => bestValue != null && Boolean(certifyBound_(bestValue, bound, tolerance)),
+    // Check the score of each complete candidate before using its bound.
+    onSolution(assignments, bound, gap) {
+      validateFarmAssignments_(context, assignments);
+      bestValue = Math.max(bestValue ?? 0, linearValue_(context, assignments, runCosts));
+      state.onSolution?.(assignments, bound, gap);
+    }
+  });
+  if (!result.optimal && !result.boundSatisfied) throw new Error("HiGHS stopped before reaching the configured linear optimality tolerance.");
   validateFarmAssignments_(context, result.assignments);
   const certificate = certifyBound_(linearValue_(context, result.assignments, runCosts), result.dualBound,
-    Math.min(PROOF_RELATIVE_GAP, solveRelativeGap_(state) * 2));
+    tolerance);
   if (!certificate) throw new Error("The solver's linear bound could not be verified against the returned allocation.");
   result.dualBound = certificate.upperBound;
   return result;
@@ -946,15 +978,18 @@ export async function optimizeCrazy(rawInput, options = {}) {
 
 // Find an allocation and verify it against the requested accuracy target.
 async function optimizeCrazy_(rawInput, options = {}) {
-  const { input, errors } = validateInput(rawInput);
+  const { input: originalInput, errors } = validateInput(rawInput);
   if (errors.length) throw new OptimizerValidationError(errors);
-  const seedInput = { ...input, selectedFarmMissions: [...input.selectedFarmMissions].sort(), selectedCampaignFarmMissions: [...input.selectedCampaignFarmMissions].sort() };
+  // A positive fragment yield scales rewards, so search with a common unit value.
+  const input = { ...originalInput, fragmentsPerCompletion: originalInput.fragmentsPerCompletion > 0 ? 1 : 0 };
+  const seedInput = { ...originalInput, selectedFarmMissions: [...input.selectedFarmMissions].sort(), selectedCampaignFarmMissions: [...input.selectedCampaignFarmMissions].sort() };
   const seed = deriveSeed(seedInput);
   const effectiveSeedFarms = input.campaignEnabled
     ? [...input.selectedCampaignFarmMissions].sort()
     : [...input.selectedFarmMissions].sort();
   const solverSeed = deriveSeed({
     ...seedInput,
+    fragmentsPerCompletion: input.fragmentsPerCompletion,
     campaignEnabled: false,
     campaignTargetName: "",
     relic11Level: 0,
@@ -967,6 +1002,7 @@ async function optimizeCrazy_(rawInput, options = {}) {
   const onCheckpoint = options.onCheckpoint || (() => {});
   const startedAt = performance.now();
   const context = buildContext_(input);
+  context.fragmentScale = originalInput.fragmentsPerCompletion > 0 ? originalInput.fragmentsPerCompletion : 1;
 
   const standard = optimize({ ...input, searchEffort: "standard" }, {
     // Forward the starting search's progress under its own phase name.
@@ -978,7 +1014,7 @@ async function optimizeCrazy_(rawInput, options = {}) {
     solutionStatus: "best-found",
     upperBound: null,
     relativeGap: null,
-    solverStats: { engine: "CIFI heuristic", version: "3.0.4", nodes: 0, iterations: standard.solverStats?.iterations || 0 },
+    solverStats: { engine: "CIFI heuristic", version: "3.0.5", nodes: 0, iterations: standard.solverStats?.iterations || 0 },
     hybridIdeals: standard.hybridIdeals,
     seed
   });

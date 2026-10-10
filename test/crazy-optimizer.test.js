@@ -230,3 +230,43 @@ test("late-game fragment and hybrid optima are invariant to fragment yield scale
     assertAllocationInvariants(input, hybrid);
   }
 });
+
+test("fragment scaling preserves searches and restores reward units in every mode and checkpoint", async () => {
+  for (const mode of ["Fragments", "Maximising Resources", "Max Completions", "Fragments + Resources", "Academy Points"]) {
+    let reference = null;
+    for (const fragments of [1, 0.7974, 0.7974334, 1e-12, 1000]) {
+      const input = tinyExactInput(mode);
+      input.fragmentsPerCompletion = fragments;
+      const checkpoints = [];
+      const progress = [];
+      const result = await optimizeCrazy(input, {
+        onCheckpoint: checkpoint => checkpoints.push(checkpoint),
+        onProgress: event => progress.push(event)
+      });
+      assert.equal(result.solutionStatus, "tolerance-met");
+      for (const candidate of [...checkpoints, result]) {
+        const evaluated = evaluateCrazyAssignmentsForTest(buildCrazyContextForTest(input), candidate.assignments);
+        for (const [reward, expected] of Object.entries(evaluated.totals)) {
+          assert.ok(Math.abs(candidate.totals[reward] - expected) <= 1e-12 * Math.max(Math.abs(expected), 1e-300), `${mode}: ${reward}`);
+        }
+        const objective = describeObjective(mode, evaluated.summary, candidate.hybridIdeals);
+        for (const key of ["primaryValue", "secondaryValue"]) {
+          assert.ok(Math.abs(candidate.objective[key] - objective[key]) <= 1e-12 * Math.max(Math.abs(objective[key]), 1e-300));
+        }
+      }
+      assert.equal(progress.at(-1).upperBound, result.objective.upperBound);
+      if (reference) {
+        assert.deepEqual(result.assignments, reference.assignments);
+        assert.deepEqual(result.solverStats, reference.solverStats);
+        assert.notEqual(result.runId, reference.runId);
+        const boundScale = mode === "Fragments" ? fragments : 1;
+        assert.ok(Math.abs(result.objective.upperBound - reference.objective.upperBound * boundScale) <= 1e-12 * Math.max(result.objective.upperBound, 1e-300));
+        if (result.hybridIdeals) {
+          assert.equal(result.hybridIdeals.fragments, reference.hybridIdeals.fragments * fragments);
+          assert.equal(result.hybridIdeals.fragmentUpperBound, reference.hybridIdeals.fragmentUpperBound * fragments);
+        }
+      }
+      reference ||= result;
+    }
+  }
+});

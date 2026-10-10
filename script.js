@@ -2,20 +2,20 @@ import {
   ALL_FARM_MISSIONS,
   MATS,
   TYPE_ORDER
-} from "./src/data.js?v=3.0.4";
-import { canonicalStringify } from "./src/random.js?v=3.0.4";
-import { buildProgressView, formatDuration, formatSolverUpdateAge, formatSolverWork } from "./src/progress.js?v=3.0.4";
-import { clearState, loadState, saveState } from "./src/state.js?v=3.0.4";
-import { OptimizerCancelledError, OptimizerWorkerClient } from "./src/worker-client.js?v=3.0.4";
+} from "./src/data.js?v=3.0.5";
+import { canonicalStringify } from "./src/random.js?v=3.0.5";
+import { buildProgressView, formatDuration, formatSolverUpdateAge, formatSolverWork } from "./src/progress.js?v=3.0.5";
+import { clearState, loadState, saveState } from "./src/state.js?v=3.0.5";
+import { OptimizerCancelledError, OptimizerWorkerClient } from "./src/worker-client.js?v=3.0.5";
 import {
   createDefaultInput,
   getAvailableModes,
   getVisibleCampaignNames,
   getVisibleFarmNames,
   validateInput
-} from "./src/validation.js?v=3.0.4";
+} from "./src/validation.js?v=3.0.5";
 
-const APP_VERSION = "3.0.4";
+const APP_VERSION = "3.0.5";
 const elements = new Map();
 // Find a page element and remember it for later use.
 const byId = id => {
@@ -43,7 +43,7 @@ let lastSolverUpdateAt = null;
 let lastSolverUpdate = 0;
 const workerClient = new OptimizerWorkerClient(() => {
   if (!window.Worker) throw new Error("This browser does not support background optimisation.");
-  return new Worker(new URL("./src/worker.js?v=3.0.4", import.meta.url), { type: "module" });
+  return new Worker(new URL("./src/worker.js?v=3.0.5", import.meta.url), { type: "module" });
 });
 
 // Show the selected tab and optionally move focus to it.
