@@ -6,7 +6,7 @@ import {
   OURO_OFF_VISIBLE_FARMS,
   TYPE_ORDER,
   TYPE_RANK
-} from "./data.js?v=3.0.3";
+} from "./data.js?v=3.0.4";
 import {
   compareSummaries,
   describeObjective,
@@ -15,12 +15,12 @@ import {
   PROOF_RELATIVE_GAP,
   relativeGap,
   summaryFromTotals
-} from "./objective.js?v=3.0.3";
-import { optimize, OptimizerValidationError } from "./optimizer.js?v=3.0.3";
-import { deriveSeed, formatRunId } from "./random.js?v=3.0.3";
-import { calculateGlobalSpeedMultiplier, validateInput } from "./validation.js?v=3.0.3";
-import { createSolverProgress } from "./solver-progress.js?v=3.0.3";
-import { buildProgressView } from "./progress.js?v=3.0.3";
+} from "./objective.js?v=3.0.4";
+import { optimize, OptimizerValidationError } from "./optimizer.js?v=3.0.4";
+import { deriveSeed, formatRunId } from "./random.js?v=3.0.4";
+import { calculateGlobalSpeedMultiplier, validateInput } from "./validation.js?v=3.0.4";
+import { createSolverProgress } from "./solver-progress.js?v=3.0.4";
+import { buildProgressView } from "./progress.js?v=3.0.4";
 
 const MAX_RUNS_PER_HOUR = 1800;
 const NUMERIC_EPSILON = 1e-9;
@@ -40,9 +40,9 @@ function recordSolverDiagnostic_(message) {
 // Load the Overkill solver once and reuse it for later runs.
 async function loadSolver_() {
   if (!highsPromise) {
-    highsPromise = import("../vendor/highs/highs.mjs?v=3.0.3").then(({ default: loadHighs }) => loadHighs({
+    highsPromise = import("../vendor/highs/highs.mjs?v=3.0.4").then(({ default: loadHighs }) => loadHighs({
       locateFile: file => file.endsWith(".wasm")
-        ? new URL("../vendor/highs/highs.wasm?v=3.0.3", import.meta.url).href
+        ? new URL("../vendor/highs/highs.wasm?v=3.0.4", import.meta.url).href
         : file,
       print: () => {},
       printErr: recordSolverDiagnostic_
@@ -569,6 +569,10 @@ function vectorFromAssignments_(context, layout, assignments) {
     });
     vector[layout.runs[missionIndex]] = Math.min(MAX_RUNS_PER_HOUR, mission.alpha * power) / layout.scales[layout.runs[missionIndex]];
   });
+  const totals = resourceTotalsFromAssignments_(context, assignments);
+  Object.entries(layout.utility).forEach(([material, index]) => {
+    vector[index] = context.input.weights[material] * Math.log1p(totals[material]) / layout.scales[index];
+  });
   return vector;
 }
 
@@ -582,11 +586,18 @@ function safeInfo_(model, name, fallback) {
   }
 }
 
+// Keep extra precision for the main goal and the stated tolerance for tie-breaks.
+function solveRelativeGap_(state) {
+  return state.phase === "crazy-tiebreak" || state.phase === "crazy-utilisation"
+    ? PROOF_RELATIVE_GAP
+    : SOLVE_RELATIVE_GAP;
+}
+
 // Set the solver's accuracy requirements and repeatable starting seed.
 function configureModel_(model, state) {
   model.options.set({
     output_flag: false,
-    mip_rel_gap: SOLVE_RELATIVE_GAP,
+    mip_rel_gap: solveRelativeGap_(state),
     mip_abs_gap: 0,
     primal_feasibility_tolerance: 1e-9,
     dual_feasibility_tolerance: 1e-9,
@@ -758,7 +769,8 @@ async function solveLinear_(highs, context, runCosts, state, linearMinimums = []
   const result = await runModel_(highs, context, { runCosts, utilityFactor: 0, linearMinimums, nonlinearMinimums }, state);
   if (!result.optimal) throw new Error("HiGHS stopped before reaching the configured linear optimality tolerance.");
   validateFarmAssignments_(context, result.assignments);
-  const certificate = certifyBound_(linearValue_(context, result.assignments, runCosts), result.dualBound, SOLVE_RELATIVE_GAP * 2);
+  const certificate = certifyBound_(linearValue_(context, result.assignments, runCosts), result.dualBound,
+    Math.min(PROOF_RELATIVE_GAP, solveRelativeGap_(state) * 2));
   if (!certificate) throw new Error("The solver's linear bound could not be verified against the returned allocation.");
   result.dualBound = certificate.upperBound;
   return result;
@@ -823,7 +835,8 @@ async function solveConcave_(highs, context, parameters, state) {
       }
       const gap = relativeGap(bestValue, upperBound);
       state.onProgress({ phase: state.phase, determinate: false, completed: 0, total: 1, nodes: totalNodes, upperBound, relativeGap: gap, elapsedMs: performance.now() - state.startedAt });
-      const certificate = certifyBound_(bestValue, upperBound, SOLVE_RELATIVE_GAP * 2);
+      const certificate = certifyBound_(bestValue, upperBound,
+        Math.min(PROOF_RELATIVE_GAP, solveRelativeGap_(state) * 2));
       if (solve.optimal && certificate) {
         validateFarmAssignments_(context, bestAssignments);
         return { assignments: bestAssignments, value: bestValue, ...certificate, nodes: totalNodes, iterations, optimal: true, points, vectors };
@@ -965,7 +978,7 @@ async function optimizeCrazy_(rawInput, options = {}) {
     solutionStatus: "best-found",
     upperBound: null,
     relativeGap: null,
-    solverStats: { engine: "CIFI heuristic", version: "3.0.3", nodes: 0, iterations: standard.solverStats?.iterations || 0 },
+    solverStats: { engine: "CIFI heuristic", version: "3.0.4", nodes: 0, iterations: standard.solverStats?.iterations || 0 },
     hybridIdeals: standard.hybridIdeals,
     seed
   });

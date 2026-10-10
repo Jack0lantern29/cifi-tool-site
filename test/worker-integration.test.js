@@ -88,7 +88,7 @@ test("numeric verification failure returns an explicitly unverified checkpoint",
   }
 });
 
-test("reported all-farms Fragments setup completes with native work updates", { timeout: 30000 }, async () => {
+test("reported Fragments abort with Research 70 completes and verifies the tie-break", { timeout: 180000 }, async () => {
   const client = new OptimizerWorkerClient(workerFactory);
   const input = createDefaultInput();
   Object.assign(input, { ouroUnlocked: true, searchEffort: "crazy", mode: "Fragments", fragmentsPerCompletion: 0.7974 });
@@ -97,14 +97,17 @@ test("reported all-farms Fragments setup completes with native work updates", { 
   });
   Object.assign(input.modifiers, {
     engineeringBadge: true, swarmLevel: 46, productivityLevel: 26,
-    research58: 6, research80: 6, relic3: 55, ts07Enabled: true
+    research58: 6, research70: 6, research80: 6, relic3: 55, ts07Enabled: true
   });
   try {
     const events = [];
     const result = await client.run(input, { onProgress: progress => events.push(progress) });
     assert.equal(result.solutionStatus, "tolerance-met");
-    assert.ok(result.objective.relativeGap <= 0.000001);
-    assert.ok(result.objective.primaryValue > 239296.57);
+    assert.ok(result.objective.relativeGap <= 0.00000002, "the main fragment goal retains its stricter accuracy");
+    assert.ok(Math.abs(result.objective.primaryValue - 388430.7111554865) < 0.001);
+    assert.ok(result.objective.secondaryValue >= 128.8313);
+    const tieBreak = events.filter(event => event.phase === "crazy-tiebreak").at(-1);
+    assert.ok(tieBreak.relativeGap >= 0 && tieBreak.relativeGap <= 0.000001, "the actual resource score meets the stated tolerance");
     assert.ok(events.some(event => event.solverUpdate > 0 && event.solverStage !== "Starting search" && event.solverStage !== "Checking search result"));
     assert.ok(events.some(event => event.solverNodes > 0));
     assert.ok(events.some(event => event.solverIterations > 0));
