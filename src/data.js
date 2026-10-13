@@ -1,5 +1,18 @@
 export const MATS = ["Difar","Kento","Chromium","Exon","Organium","Adamorphium","Moskom","Darkseid"];
 export const TYPE_ORDER = ["Mining Pod","Fireteam Carrier","Titan Hauler","Combat Corvette"];
+export const FARM_UNLOCK_STAGES = Object.freeze([1, 3, 4, 12]);
+export function farmUnlockCampaign(name) {
+  const match = /^F([1-4])-([1-4])$/.exec(name);
+  return match ? `C${match[1]}-${FARM_UNLOCK_STAGES[Number(match[2]) - 1]}` : null;
+}
+export function isFarmUnlocked(name, progress, useTargets = false) {
+  const unlock = farmUnlockCampaign(name);
+  if (!unlock) return false;
+  const [section, stage] = unlock.split("-");
+  const completed = Number(progress?.[section]?.completed) || 0;
+  const through = useTargets ? Math.max(completed, Number(progress?.[section]?.target) || 0) : completed;
+  return through >= Number(stage);
+}
 export const TYPE_RANK = {
   "Mining Pod": 1,
   "Fireteam Carrier": 2,

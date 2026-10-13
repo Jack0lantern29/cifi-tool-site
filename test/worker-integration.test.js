@@ -31,6 +31,48 @@ function workerFactory() {
   };
 }
 
+test("real worker returns a multi-section Shorts route", { timeout: 15000 }, async () => {
+  const client = new OptimizerWorkerClient(workerFactory);
+  const input = createDefaultInput();
+  input.campaignEnabled = input.shortsEnabled = true;
+  input.selectedCampaignFarmMissions = [];
+  input.workers["Mining Pod"] = { power: 1, count: 1000 };
+  input.shortsProgress.C1.target = 2;
+  input.shortsProgress.C2.target = 2;
+  try {
+    const events = [];
+    const result = await client.run(input, { onProgress: event => events.push(event) });
+    assert.equal(result.shortsPlan.jobs.length, 10);
+    assert.ok(result.shortsPlan.jobs.find(job => job.name === "C2-1").startHours >= result.shortsPlan.jobs.find(job => job.name === "C1-8").endHours);
+    assert.ok(events.some(event => event.phase === "shorts-planning"));
+    assert.equal(events.at(-1).phase, "complete");
+  } finally {
+    client.dispose();
+  }
+});
+
+test("cancelling Shorts Overkill retains a complete route and supports rerunning", { timeout: 15000 }, async () => {
+  const client = new OptimizerWorkerClient(workerFactory);
+  const input = createDefaultInput();
+  input.campaignEnabled = input.shortsEnabled = true;
+  input.searchEffort = "crazy";
+  input.selectedCampaignFarmMissions = ["F1-1"];
+  input.workers["Mining Pod"] = { power: 1, count: 1000 };
+  input.shortsProgress.C1.completed = 1;
+  input.shortsProgress.C1.target = 3;
+  try {
+    const result = await client.run(input, { onCheckpoint: () => client.cancel() });
+    assert.equal(result.solutionStatus, "cancelled-best");
+    assert.equal(result.shortsPlan.jobs.length, 2);
+    assert.ok(result.assignments.some(row => row.name === "F1-1"));
+    const rerun = await client.run(input);
+    assert.equal(rerun.shortsPlan.jobs.length, 2);
+    assert.equal(rerun.solutionStatus, "best-found");
+  } finally {
+    client.dispose();
+  }
+});
+
 test("real Overkill worker loads WASM, completes, cancels with a checkpoint, and restarts", { timeout: 15000 }, async () => {
   const client = new OptimizerWorkerClient(workerFactory);
   const input = createDefaultInput();
@@ -86,6 +128,21 @@ test("numeric verification failure returns an explicitly unverified checkpoint",
   } finally {
     client.dispose();
   }
+});
+
+test("tracked farm reservations reach the worker and remain assigned during Shorts replanning", async () => {
+  const client = new OptimizerWorkerClient(workerFactory);
+  const input = createDefaultInput();
+  input.campaignEnabled = input.shortsEnabled = true;
+  input.workers["Mining Pod"] = { power: 100, count: 100 };
+  input.shortsProgress.C1 = { completed: 1, target: 2, active: null };
+  input.selectedCampaignFarmMissions = ["F1-1"];
+  const reservedFarms = [{ name: "F1-1", type: "Mining Pod", count: 5 }];
+  try {
+    const result = await client.run(input, { reservedFarms });
+    assert.deepEqual(result.assignments.filter(row => row.name.startsWith("F")), reservedFarms);
+    assert.equal(result.shortsPlan.availableWorkers["Mining Pod"], 95);
+  } finally { client.dispose(); }
 });
 
 test("reported Fragments settings finish with both decimal yields and the same allocation", { timeout: 240000 }, async () => {

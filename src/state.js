@@ -1,5 +1,5 @@
-import { ALL_FARM_MISSIONS, MATS, TYPE_ORDER } from "./data.js?v=3.0.5";
-import { createDefaultInput, validateInput } from "./validation.js?v=3.0.5";
+import { ALL_FARM_MISSIONS, CAMPAIGN_BASE_CAPS, MATS, TYPE_ORDER } from "./data.js?v=3.2.4";
+import { CAMPAIGN_SECTIONS, createDefaultInput, getVisibleCampaignNames, validateInput } from "./validation.js?v=3.2.4";
 
 export const STATE_SCHEMA_VERSION = 3;
 export const STORAGE_KEY_V3 = "cifi-farm-mission-optimizer-state-v3";
@@ -96,10 +96,31 @@ export function sanitizePersistedInput(raw) {
     relic3: safeNumber(source.modifiers?.relic3, { integer: true, max: Number.MAX_SAFE_INTEGER }),
     ts07Enabled: Boolean(source.modifiers?.ts07Enabled)
   };
+  const visibleCampaigns = getVisibleCampaignNames(Boolean(source.ouroUnlocked));
+  const locked = Object.fromEntries(TYPE_ORDER.map(type => [type, 0]));
+  const shortsProgress = Object.fromEntries(CAMPAIGN_SECTIONS.map(section => {
+    const value = source.shortsProgress?.[section];
+    const max = visibleCampaigns.filter(name => name.startsWith(`${section}-`)).length;
+    const completed = safeNumber(value?.completed, { integer: true, max });
+    const target = Math.max(completed, safeNumber(value?.target, { integer: true, max }));
+    let active = null;
+    if (value?.active && completed < target) {
+      const remainingHours = safeNumber(value.active.remainingHours);
+      const counts = Object.fromEntries(TYPE_ORDER.map(type => [type, safeNumber(value.active.workers?.[type], { integer: true, max: Number.MAX_SAFE_INTEGER })]));
+      const count = Object.values(counts).reduce((sum, amount) => sum + amount, 0);
+      const cap = Math.round(CAMPAIGN_BASE_CAPS[`${section}-${completed + 1}`] * (1 + (source.ouroUnlocked ? safeNumber(source.relic11Level, { integer: true }) * 0.5 : 0)));
+      if (remainingHours > 0 && count > 0 && count <= cap && TYPE_ORDER.every(type => locked[type] + counts[type] <= workers[type].count)) {
+        active = { remainingHours, workers: counts };
+        TYPE_ORDER.forEach(type => { locked[type] += counts[type]; });
+      }
+    }
+    return [section, { completed, target, active }];
+  }));
   const candidate = {
     ...defaults,
     ...source,
     workers,
+    shortsProgress,
     weights: Object.fromEntries(MATS.map(material => [material, Number(source.weights?.[material]) === 10 ? 10 : 1])),
     hybridFragmentPercent: safePercentage(source.hybridFragmentPercent, defaults.hybridFragmentPercent),
     fragmentsPerCompletion: safeNumber(source.fragmentsPerCompletion),

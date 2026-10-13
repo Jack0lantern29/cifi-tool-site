@@ -6,7 +6,7 @@ import {
   OURO_OFF_VISIBLE_FARMS,
   TYPE_ORDER,
   TYPE_RANK
-} from "./data.js?v=3.0.5";
+} from "./data.js?v=3.2.4";
 import {
   compareSummaries,
   describeObjective,
@@ -15,12 +15,12 @@ import {
   PROOF_RELATIVE_GAP,
   relativeGap,
   summaryFromTotals
-} from "./objective.js?v=3.0.5";
-import { optimize, OptimizerValidationError } from "./optimizer.js?v=3.0.5";
-import { deriveSeed, formatRunId } from "./random.js?v=3.0.5";
-import { calculateGlobalSpeedMultiplier, validateInput } from "./validation.js?v=3.0.5";
-import { createSolverProgress } from "./solver-progress.js?v=3.0.5";
-import { buildProgressView } from "./progress.js?v=3.0.5";
+} from "./objective.js?v=3.2.4";
+import { optimize, OptimizerValidationError } from "./optimizer.js?v=3.2.4";
+import { deriveSeed, formatRunId } from "./random.js?v=3.2.4";
+import { calculateGlobalSpeedMultiplier, validateInput } from "./validation.js?v=3.2.4";
+import { createSolverProgress } from "./solver-progress.js?v=3.2.4";
+import { buildProgressView } from "./progress.js?v=3.2.4";
 
 const MAX_RUNS_PER_HOUR = 1800;
 const NUMERIC_EPSILON = 1e-9;
@@ -40,9 +40,9 @@ function recordSolverDiagnostic_(message) {
 // Load the Overkill solver once and reuse it for later runs.
 async function loadSolver_() {
   if (!highsPromise) {
-    highsPromise = import("../vendor/highs/highs.mjs?v=3.0.5").then(({ default: loadHighs }) => loadHighs({
+    highsPromise = import("../vendor/highs/highs.mjs?v=3.2.4").then(({ default: loadHighs }) => loadHighs({
       locateFile: file => file.endsWith(".wasm")
-        ? new URL("../vendor/highs/highs.wasm?v=3.0.5", import.meta.url).href
+        ? new URL("../vendor/highs/highs.wasm?v=3.2.4", import.meta.url).href
         : file,
       print: () => {},
       printErr: recordSolverDiagnostic_
@@ -987,7 +987,7 @@ async function optimizeCrazy_(rawInput, options = {}) {
   const effectiveSeedFarms = input.campaignEnabled
     ? [...input.selectedCampaignFarmMissions].sort()
     : [...input.selectedFarmMissions].sort();
-  const solverSeed = deriveSeed({
+  const solverSeedInput = {
     ...seedInput,
     fragmentsPerCompletion: input.fragmentsPerCompletion,
     campaignEnabled: false,
@@ -995,7 +995,10 @@ async function optimizeCrazy_(rawInput, options = {}) {
     relic11Level: 0,
     selectedFarmMissions: effectiveSeedFarms,
     selectedCampaignFarmMissions: effectiveSeedFarms
-  });
+  };
+  delete solverSeedInput.shortsEnabled;
+  delete solverSeedInput.shortsProgress;
+  const solverSeed = deriveSeed(solverSeedInput);
   // Use the caller's progress handler, or ignore updates when none is supplied.
   const onProgress = options.onProgress || (() => {});
   // Use the caller's handler for saving complete allocations during the search.
@@ -1014,7 +1017,7 @@ async function optimizeCrazy_(rawInput, options = {}) {
     solutionStatus: "best-found",
     upperBound: null,
     relativeGap: null,
-    solverStats: { engine: "CIFI heuristic", version: "3.0.5", nodes: 0, iterations: standard.solverStats?.iterations || 0 },
+    solverStats: { engine: "CIFI heuristic", version: "3.2.4", nodes: 0, iterations: standard.solverStats?.iterations || 0 },
     hybridIdeals: standard.hybridIdeals,
     seed
   });

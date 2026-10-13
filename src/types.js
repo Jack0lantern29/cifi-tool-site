@@ -14,6 +14,8 @@
  *   fragmentsPerCompletion: number,
  *   campaignEnabled: boolean,
  *   campaignTargetName: string,
+ *   shortsEnabled: boolean,
+ *   shortsProgress: Record<string, { completed: number, target: number, active: { remainingHours: number, workers: Record<string, number> } | null }>,
  *   relic11Level: number,
  *   modifiers: ModifierInput
  * }} OptimizerInput
@@ -39,7 +41,9 @@
  *   seed: number,
  *   runId: string,
  *   durationMs?: number,
- *   notices: string[]
+ *   notices: string[],
+ *   shortsPlan?: { jobs: object[], steps: object[], farmEvents: { name: string, workers: Record<string, number>, unlockCampaign: string, timeHours: number }[], futureFarmNames: string[], unstaffedFarmNames: string[], farmBlockedAt: number|null, totalHours: number, baselineHours: number, certificate: { lowerBoundHours: number, relativeGap: number|null, provenOptimal: boolean, method: string, nodes: number }, unresolved: string[], availableWorkers: Record<string, number>, searched: number, status: "best-found"|"blocked" },
+ *   shortsProgress?: OptimizerInput["shortsProgress"]
  * }} OptimizerResult
  * @typedef {{ schemaVersion: 3, savedAt: string, input: OptimizerInput }} SavedStateV3
  */

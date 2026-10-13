@@ -1,12 +1,13 @@
 {
   "name": "cifi-zeus-mission-optimizer",
-  "version": "3.0.5",
+  "version": "3.2.4",
   "private": true,
   "type": "module",
   "scripts": {
     "test": "node --test",
+    "check:browser": "node scripts/check-tracker-browser.mjs",
     "vendor:highs": "node scripts/vendor-highs.mjs",
-    "check": "node --check script.js && node --check src/optimizer.js && node --check src/crazy-optimizer.js && node --test"
+    "check": "node --check script.js && node --check src/optimizer.js && node --check src/crazy-optimizer.js && node --check src/shorts-optimizer.js && node --check src/shorts-search.js && node --check src/shorts-progress.js && node --check src/farm-reservations.js && node --check src/campaign-unlocks.js && node --check src/eta.js && node --check src/shorts-tracker.js && node --check src/tracker-view.js && node --check src/tracked-farms.js && node --test"
   },
   "dependencies": {
     "highs": "1.15.3-pre.4"

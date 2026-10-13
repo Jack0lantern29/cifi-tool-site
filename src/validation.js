@@ -2,16 +2,20 @@ import {
   ALL_CAMPAIGN_MISSIONS,
   ALL_FARM_MISSIONS,
   ALL_MODE_OPTIONS,
+  CAMPAIGN_BASE_CAPS,
+  isFarmUnlocked,
   MATS,
   OURO_OFF_VISIBLE_CAMPAIGNS,
   OURO_OFF_VISIBLE_FARMS,
   OURO_REQUIRED_MODE_OPTIONS,
   TYPE_ORDER
-} from "./data.js?v=3.0.5";
+} from "./data.js?v=3.2.4";
+import { SECTION_REQUIREMENTS } from "./campaign-unlocks.js?v=3.2.4";
 
 const DEFAULT_MODE = "Maximising Resources";
 const DEFAULT_CAMPAIGN = "C4-11";
 export const SEARCH_EFFORTS = Object.freeze(["standard", "crazy"]);
+export const CAMPAIGN_SECTIONS = Object.freeze(["C1", "C2", "C3", "C4"]);
 
 // Create the starting settings for a new or reset session.
 export function createDefaultInput() {
@@ -27,6 +31,8 @@ export function createDefaultInput() {
     fragmentsPerCompletion: 0,
     campaignEnabled: false,
     campaignTargetName: DEFAULT_CAMPAIGN,
+    shortsEnabled: false,
+    shortsProgress: Object.fromEntries(CAMPAIGN_SECTIONS.map(section => [section, { completed: 0, target: 0, active: null }])),
     relic11Level: 0,
     modifiers: {
       engineeringBadge: false,
@@ -42,8 +48,8 @@ export function createDefaultInput() {
 }
 
 // List farms available with the current Ouroboros unlock.
-export function getVisibleFarmNames(ouroUnlocked) {
-  return ALL_FARM_MISSIONS.filter(name => ouroUnlocked || OURO_OFF_VISIBLE_FARMS.has(name));
+export function getVisibleFarmNames(ouroUnlocked, progress = null, useTargets = false) {
+  return ALL_FARM_MISSIONS.filter(name => (ouroUnlocked || OURO_OFF_VISIBLE_FARMS.has(name)) && (!progress || isFarmUnlocked(name, progress, useTargets)));
 }
 
 // List campaigns available with the current Ouroboros unlock.
@@ -140,15 +146,58 @@ export function validateInput(raw) {
   const campaignTargetName = visibleCampaigns.includes(source.campaignTargetName)
     ? source.campaignTargetName
     : (visibleCampaigns.includes(DEFAULT_CAMPAIGN) ? DEFAULT_CAMPAIGN : visibleCampaigns[0]);
-  if (source.campaignEnabled && source.campaignTargetName && !visibleCampaigns.includes(source.campaignTargetName)) {
+  if (source.campaignEnabled && !source.shortsEnabled && source.campaignTargetName && !visibleCampaigns.includes(source.campaignTargetName)) {
     errors.push({ field: "campaignTarget", message: "Select an available campaign target." });
   }
 
   const selectedFarmMissions = uniqueKnown(source.selectedFarmMissions ?? defaults.selectedFarmMissions, ALL_FARM_MISSIONS);
   const selectedCampaignFarmMissions = uniqueKnown(
     source.selectedCampaignFarmMissions ?? defaults.selectedCampaignFarmMissions,
-    selectedFarmMissions
+    ALL_FARM_MISSIONS
   );
+
+  const shortsEnabled = Boolean(source.shortsEnabled);
+  const shortsProgress = {};
+  const locked = Object.fromEntries(TYPE_ORDER.map(type => [type, 0]));
+  for (const section of CAMPAIGN_SECTIONS) {
+    const value = source.shortsProgress?.[section] || defaults.shortsProgress[section];
+    const max = Math.max(0, ...visibleCampaigns.filter(name => name.startsWith(`${section}-`)).map(name => Number(name.split("-")[1])));
+    const completed = parseNumber(value.completed);
+    const target = parseNumber(value.target);
+    const sectionErrors = [];
+    checkNumber(sectionErrors, `shorts-completed-${section}`, completed, { integer: true, max });
+    checkNumber(sectionErrors, `shorts-target-${section}`, target, { integer: true, max });
+    if (target < completed) sectionErrors.push({ field: `shorts-target-${section}`, message: "Target must be at or after the last completed campaign." });
+    let active = null;
+    if (value.active) {
+      const remainingHours = parseNumber(value.active.remainingHours);
+      if (!Number.isFinite(remainingHours)) sectionErrors.push({ field: `shorts-hours-${section}`, message: "Enter time as HH:MM:SS (e.g. 02:30:00)." });
+      else checkNumber(sectionErrors, `shorts-hours-${section}`, remainingHours);
+      if (remainingHours === 0) sectionErrors.push({ field: `shorts-hours-${section}`, message: "Enter the running campaign's remaining time, or clear Running." });
+      const counts = Object.fromEntries(TYPE_ORDER.map((type, index) => {
+        const count = parseNumber(value.active.workers?.[type]);
+        checkNumber(sectionErrors, `shorts-active-${section}-${index}`, count, { integer: true, max: Number.MAX_SAFE_INTEGER });
+        locked[type] += count;
+        return [type, count];
+      }));
+      const assigned = Object.values(counts).reduce((sum, count) => sum + count, 0);
+      const cap = Math.round((CAMPAIGN_BASE_CAPS[`${section}-${completed + 1}`] || 0) * (1 + relic11Level * 0.5));
+      if (assigned <= 0 || assigned > cap || completed >= target) sectionErrors.push({ field: `shorts-running-${section}`, message: "A running campaign needs workers within its cap and must be within the selected target." });
+      active = { remainingHours, workers: counts };
+    }
+    shortsProgress[section] = { completed, target, active };
+    if (source.campaignEnabled && shortsEnabled) errors.push(...sectionErrors);
+  }
+  if (source.campaignEnabled && shortsEnabled) {
+    for (const [section, required] of Object.entries(SECTION_REQUIREMENTS)) {
+      if (shortsProgress[section].active && shortsProgress[required.section].completed < required.stage) {
+        errors.push({ field: `shorts-running-${section}`, message: `${required.section}-${required.stage} must be marked completed before a ${section} campaign can already be running.` });
+      }
+    }
+    TYPE_ORDER.forEach(type => {
+      if (locked[type] > workers[type].count) errors.push({ field: `worker-count-${type}`, message: "Total workers must include everyone locked in running campaigns." });
+    });
+  }
 
   return {
     input: {
@@ -163,6 +212,8 @@ export function validateInput(raw) {
       fragmentsPerCompletion,
       campaignEnabled: Boolean(source.campaignEnabled),
       campaignTargetName,
+      shortsEnabled,
+      shortsProgress,
       relic11Level,
       modifiers
     },

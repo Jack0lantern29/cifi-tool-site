@@ -4,11 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CIFI Zeus Mission Optimizer</title>
-  <meta name="description" content="Deterministic personnel allocation for CIFI farm and campaign missions." />
+  <meta name="description" content="Plan worker allocations for CIFI farm and campaign missions." />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=3.0.5" />
+  <link rel="stylesheet" href="styles.css?v=3.2.4" />
 </head>
 <body>
   <noscript><div class="noscript-notice">JavaScript is required to run the mission optimizer.</div></noscript>
@@ -32,6 +32,7 @@
 
   <main class="shell main-shell">
     <section id="optimizer" class="tab-panel active" role="tabpanel" aria-labelledby="tab-optimizer">
+      <button id="floatingOptimizerBtn" class="action-button action-button--primary floating-optimizer hidden" type="button" aria-controls="output">Run Optimizer</button>
       <section class="content-card ouro-control-card">
         <div class="ouro-control-row">
           <label class="ouro-toggle">
@@ -68,8 +69,11 @@
             <span id="runProgressElapsed">Elapsed 0s</span>
           </div>
           <progress id="optimizerProgress" class="optimizer-progress" max="1" value="0" aria-label="Optimizer progress">0%</progress>
-          <div id="runProgressTelemetry" class="run-progress-telemetry">Preparing…</div>
-          <div id="runProgressActivity" class="run-progress-telemetry" hidden></div>
+          <details>
+            <summary>Search details</summary>
+            <div id="runProgressTelemetry" class="run-progress-telemetry">Preparing…</div>
+            <div id="runProgressActivity" class="run-progress-telemetry" hidden></div>
+          </details>
         </div>
 
         <div id="hybridWeightControl" class="hybrid-weight-control ouro-only hybrid-mode-only hidden" aria-hidden="true">
@@ -86,11 +90,10 @@
 
         <div class="section-jumps">
           <button class="jump-button" data-jump="personnel">Personnel</button>
+          <button class="jump-button" data-jump="modifiers">Modifiers</button>
           <button class="jump-button" data-jump="farmMissionSelection">Farm Missions</button>
           <button class="jump-button" data-jump="campaign">Campaign</button>
           <button class="jump-button" data-jump="resources">Resources</button>
-          <button class="jump-button ouro-only" id="baseFragmentsJump" data-jump="baseFragments">Base Fragments</button>
-          <button class="jump-button" data-jump="modifiers">Modifiers</button>
           <button class="jump-button" data-jump="output">Output</button>
         </div>
       </div>
@@ -104,7 +107,7 @@
       <section id="personnel" class="content-card">
         <div class="card-header">
           <h2>Personnel</h2>
-          <p>Enter the individual power and counts of your personnel in each section.</p>
+          <p>Enter each worker’s power and total count, including assigned workers.</p>
         </div>
 
         <div class="table-wrap">
@@ -143,108 +146,10 @@
       </section>
 
 
-      <section id="farmMissionSelection" class="content-card">
-        <div class="card-header">
-          <h2>Farm Mission Selection</h2>
-          <p>Select which farm missions you have unlocked. Additional missions appear when Ouroboros is enabled.</p>
-        </div>
-
-        <div class="mission-selection-toolbar">
-          <div class="action-group action-group--inline">
-            <button class="action-button" id="missionSelectAllBtn" type="button">Select All</button>
-            <button class="action-button" id="missionClearAllBtn" type="button">Clear All</button>
-          </div>
-        </div>
-
-        <div class="mission-tier-grid" id="farmMissionSelectionGrid"></div>
-      </section>
-
-      <section id="campaign" class="content-card">
-        <div class="card-header">
-          <h2>Campaign</h2>
-          <p>Enable to optimize selected farm missions, then assign remaining personnel into the campaign target.</p>
-        </div>
-
-        <div class="grid grid-3">
-          <div class="field-card field-card--checkbox">
-            <label class="field-label">Campaign Enabled?</label>
-            <label class="checkbox-row">
-              <input id="campaignEnabled" type="checkbox" />
-              <span>Enable Campaign Optimization</span>
-            </label>
-          </div>
-
-          <div class="field-card campaign-enabled-only hidden">
-            <label class="field-label" for="campaignTarget">Campaign Target</label>
-            <select id="campaignTarget"></select>
-          </div>
-
-          <div class="field-card ouro-only campaign-enabled-only hidden">
-            <label class="field-label" for="relic11">T1 Relic 11 Level</label>
-            <input id="relic11" type="number" step="1" min="0" value="0" />
-            <p class="tiny-note">Adjusts campaign mission caps.</p>
-          </div>
-        </div>
-
-        <div class="campaign-farm-selection campaign-enabled-only hidden">
-          <div class="mission-selection-toolbar">
-            <div class="field-label compact campaign-selection-title">Concurrent Farm Missions</div>
-            <div class="action-group action-group--inline">
-              <button class="action-button" id="campaignFarmSelectAllBtn" type="button">Select All</button>
-              <button class="action-button" id="campaignFarmClearAllBtn" type="button">Clear All</button>
-            </div>
-          </div>
-
-          <div class="mission-tier-grid" id="campaignFarmMissionSelectionGrid"></div>
-        </div>
-      </section>
-
-      <section id="resources" class="content-card">
-        <div class="card-header">
-          <h2>Resources</h2>
-          <p>The optimizer will sacrifice some of its efficiency to focus on any boosted materials.</p>
-        </div>
-
-        <div class="table-wrap">
-          <table class="data-table resources-table">
-            <thead>
-              <tr>
-                <th>Material</th>
-                <th>Priority</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr><td>Difar</td><td data-label="Priority"><select id="priority-Difar" aria-label="Difar priority"><option selected>Normal</option><option>Boosted</option></select></td></tr>
-              <tr><td>Kento</td><td data-label="Priority"><select id="priority-Kento" aria-label="Kento priority"><option selected>Normal</option><option>Boosted</option></select></td></tr>
-              <tr><td>Chromium</td><td data-label="Priority"><select id="priority-Chromium" aria-label="Chromium priority"><option selected>Normal</option><option>Boosted</option></select></td></tr>
-              <tr><td>Exon</td><td data-label="Priority"><select id="priority-Exon" aria-label="Exon priority"><option selected>Normal</option><option>Boosted</option></select></td></tr>
-              <tr><td>Organium</td><td data-label="Priority"><select id="priority-Organium" aria-label="Organium priority"><option selected>Normal</option><option>Boosted</option></select></td></tr>
-              <tr><td>Adamorphium</td><td data-label="Priority"><select id="priority-Adamorphium" aria-label="Adamorphium priority"><option selected>Normal</option><option>Boosted</option></select></td></tr>
-              <tr><td>Moskom</td><td data-label="Priority"><select id="priority-Moskom" aria-label="Moskom priority"><option selected>Normal</option><option>Boosted</option></select></td></tr>
-              <tr><td>Darkseid</td><td data-label="Priority"><select id="priority-Darkseid" aria-label="Darkseid priority"><option selected>Normal</option><option>Boosted</option></select></td></tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <section id="baseFragments" class="content-card ouro-only">
-        <div class="card-header">
-          <h2>Farm Fragments</h2>
-          <p>Enter fragments from Farm Missions</p>
-        </div>
-
-        <div class="grid grid-1">
-          <div class="field-card">
-            <label class="field-label" for="baseFragmentsInput">Base Fragments / Completion (est.)</label>
-            <input id="baseFragmentsInput" type="number" step="0.0001" min="0" value="0.0000" />
-          </div>
-        </div>
-      </section>
-
       <section id="modifiers" class="content-card">
         <div class="card-header">
           <h2>Modifiers</h2>
-          <p>Fill in obtained upgrades to adjust for mission speed.</p>
+          <p>Enter your current upgrades.</p>
         </div>
 
         <div class="grid grid-4">
@@ -320,10 +225,121 @@
         </div>
       </section>
 
+      <section id="baseFragments" class="content-card ouro-only" aria-labelledby="baseFragmentsTitle">
+        <div class="card-header farm-fragments">
+          <h2 id="baseFragmentsTitle">Farm Fragments per Completion</h2>
+          <p id="baseFragmentsHelp">Enter your estimated fragments per completion.</p>
+          <input id="baseFragmentsInput" aria-labelledby="baseFragmentsTitle" aria-describedby="baseFragmentsHelp" type="number" step="0.0001" min="0" value="0.0000" />
+        </div>
+      </section>
+
+      <section id="farmMissionSelection" class="content-card">
+        <div class="card-header">
+          <h2>Farm Mission Selection</h2>
+          <p>Select the farms you want to use.</p>
+        </div>
+
+        <div class="mission-selection-toolbar">
+          <div class="action-group action-group--inline">
+            <button class="action-button" id="missionSelectAllBtn" type="button">Select All</button>
+            <button class="action-button" id="missionClearAllBtn" type="button">Clear All</button>
+          </div>
+        </div>
+
+        <div class="mission-tier-grid" id="farmMissionSelectionGrid"></div>
+      </section>
+
+      <section id="campaign" class="content-card">
+        <div class="card-header">
+          <h2>Campaign</h2>
+          <p>Select campaigns and the farms to keep running alongside them.</p>
+        </div>
+
+        <div class="grid grid-3">
+          <div class="field-card field-card--checkbox">
+            <label class="field-label">Campaign Enabled?</label>
+            <label class="checkbox-row">
+              <input id="campaignEnabled" type="checkbox" />
+              <span>Enable Campaign Optimization</span>
+            </label>
+          </div>
+
+          <div class="field-card campaign-enabled-only single-campaign-only hidden">
+            <label class="field-label" for="campaignTarget">Campaign Target</label>
+            <select id="campaignTarget"></select>
+          </div>
+
+          <div class="field-card ouro-only campaign-enabled-only hidden">
+            <label class="field-label" for="relic11">T1 Relic 11 Level</label>
+            <input id="relic11" type="number" step="1" min="0" value="0" />
+          </div>
+        </div>
+
+        <div class="field-card campaign-enabled-only hidden shorts-toggle">
+          <label class="checkbox-row" for="shortsEnabled">
+            <input id="shortsEnabled" type="checkbox" />
+            <span id="plannerModeLabel">Campaign Planner</span>
+            <span id="shortsBeta" class="beta-tag">BETA</span>
+          </label>
+          <p id="plannerModeHelp" class="tiny-note">Plan and track C1–C3 campaigns 1–8.</p>
+        </div>
+        <div id="shortsControls" class="campaign-enabled-only shorts-only hidden">
+          <p class="tiny-note shorts-help">Choose your completed campaigns and targets. Select “None completed” to start from campaign 1.</p>
+          <div id="shortsProgressGrid" class="shorts-progress-grid"></div>
+          <p class="tiny-note shorts-help">For running campaigns, enter the remaining time and assigned workers. Editing progress stops live tracking.</p>
+        </div>
+
+        <div class="campaign-farm-selection campaign-enabled-only hidden">
+          <div class="mission-selection-toolbar">
+            <div class="field-label compact campaign-selection-title">Concurrent Farm Missions</div>
+            <div class="action-group action-group--inline">
+              <button class="action-button" id="campaignFarmSelectAllBtn" type="button">Select All</button>
+              <button class="action-button" id="campaignFarmClearAllBtn" type="button">Clear All</button>
+            </div>
+          </div>
+
+          <div class="mission-tier-grid" id="campaignFarmMissionSelectionGrid"></div>
+          <details id="futureFarmSelection" class="future-farm-selection hidden">
+            <summary>Farms to start now or when unlocked</summary>
+            <p class="tiny-note">Select farms for this plan. Keep their workers assigned once each farm starts.</p>
+            <div class="mission-tier-grid" id="futureFarmMissionSelectionGrid"></div>
+          </details>
+        </div>
+      </section>
+
+      <section id="resources" class="content-card">
+        <div class="card-header">
+          <h2>Resources</h2>
+          <p>Choose Boosted for materials you want to prioritise.</p>
+        </div>
+
+        <div class="table-wrap">
+          <table class="data-table resources-table">
+            <thead>
+              <tr>
+                <th>Material</th>
+                <th>Priority</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>Difar</td><td data-label="Priority"><select id="priority-Difar" aria-label="Difar priority"><option selected>Normal</option><option>Boosted</option></select></td></tr>
+              <tr><td>Kento</td><td data-label="Priority"><select id="priority-Kento" aria-label="Kento priority"><option selected>Normal</option><option>Boosted</option></select></td></tr>
+              <tr><td>Chromium</td><td data-label="Priority"><select id="priority-Chromium" aria-label="Chromium priority"><option selected>Normal</option><option>Boosted</option></select></td></tr>
+              <tr><td>Exon</td><td data-label="Priority"><select id="priority-Exon" aria-label="Exon priority"><option selected>Normal</option><option>Boosted</option></select></td></tr>
+              <tr><td>Organium</td><td data-label="Priority"><select id="priority-Organium" aria-label="Organium priority"><option selected>Normal</option><option>Boosted</option></select></td></tr>
+              <tr><td>Adamorphium</td><td data-label="Priority"><select id="priority-Adamorphium" aria-label="Adamorphium priority"><option selected>Normal</option><option>Boosted</option></select></td></tr>
+              <tr><td>Moskom</td><td data-label="Priority"><select id="priority-Moskom" aria-label="Moskom priority"><option selected>Normal</option><option>Boosted</option></select></td></tr>
+              <tr><td>Darkseid</td><td data-label="Priority"><select id="priority-Darkseid" aria-label="Darkseid priority"><option selected>Normal</option><option>Boosted</option></select></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+
+
       <section id="output" class="content-card output-placeholder">
         <div class="card-header">
           <h2>Output</h2>
-          <p>Shows the allocation, selected farm scope, campaign use, and elapsed runtime.</p>
         </div>
 
         <div class="grid grid-3 summary-grid">
@@ -334,6 +350,7 @@
           <div class="field-card">
             <label class="field-label">Campaign ETA (hrs)</label>
             <div class="summary-value" id="campaignEtaText">—</div>
+            <p class="tiny-note" id="campaignEtaClockText" aria-label="Estimated finish in local time">—</p>
           </div>
           <div class="field-card">
             <label class="field-label">Mode Used</label>
@@ -352,7 +369,7 @@
 
         <div id="resultNotices" class="result-notices hidden" role="status" aria-live="polite"></div>
 
-        <div class="output-block-header">Mission Distribution</div>
+        <div class="output-block-header" id="distributionTitle">Mission Distribution</div>
         <div class="table-wrap">
           <table class="data-table output-distribution-table">
             <thead>
@@ -370,7 +387,27 @@
           </table>
         </div>
 
-        <div class="output-block-header">Base Resources per hour (Before any material bonuses).</div>
+        <section id="shortsOutput" class="shorts-output hidden" aria-labelledby="shortsOutputTitle">
+          <div class="card-header">
+            <h3 id="shortsOutputTitle">Shorts campaign plan</h3>
+            <p id="shortsSummary"></p>
+          </div>
+          <p id="shortsVerification" class="shorts-verification" role="status"></p>
+          <p id="shortsStale" class="result-notices hidden" role="status">Your inputs have changed. Recalculate before following this plan.</p>
+          <div class="action-group action-group--inline">
+            <button id="shortsRecalculateBtn" class="action-button" type="button">Recalculate plan</button>
+          </div>
+          <section id="shortsTracker" class="shorts-tracker" aria-label="Live campaign tracker" hidden></section>
+          <details id="shortsStepsDisclosure" class="shorts-steps-disclosure">
+            <summary>Step-by-step plan</summary>
+            <p id="shortsClockExplanation" class="tiny-note shorts-help"></p>
+            <p id="shortsContinueHelp" class="tiny-note shorts-help">After a step finishes, choose “Continue from here” and check your remaining timers.</p>
+            <p id="trackerStepsHelp" class="tiny-note shorts-help hidden">Follow the live tracker for starts and completions. Update the plan after changes.</p>
+            <ol id="shortsSteps" class="shorts-steps"></ol>
+          </details>
+        </section>
+
+        <div class="output-block-header" id="totalsTitle">Farm output per hour (before material bonuses)</div>
         <div class="table-wrap">
           <table class="data-table output-totals-table">
             <thead>
@@ -379,10 +416,24 @@
             <tbody id="totalsBody">
               <tr><td colspan="2">Run the optimizer to populate totals.</td></tr>
             </tbody>
+            <tbody>
+              <tr>
+                <td colspan="2" class="resource-disclosure-cell">
+                  <details id="resourceTotalsDisclosure" class="resource-totals-disclosure">
+                    <summary>Materials and Academy Points</summary>
+                    <table class="data-table output-totals-table" aria-label="Materials and Academy Points per hour">
+                      <tbody id="resourceTotalsBody">
+                        <tr><td colspan="2">Run the optimizer to populate resources.</td></tr>
+                      </tbody>
+                    </table>
+                  </details>
+                </td>
+              </tr>
+            </tbody>
           </table>
         </div>
 
-        <div class="output-block-header">Unassigned Personnel</div>
+        <div class="output-block-header" id="unassignedTitle">Unassigned Personnel</div>
         <div class="table-wrap">
           <table class="data-table output-unassigned-table">
             <thead><tr><th>Personnel Type</th><th>Remaining</th></tr></thead>
@@ -430,6 +481,10 @@
 
         <div class="changelog-list">
           <div class="changelog-item">
+            <span class="tag">v3.1.0</span>
+            <p>Added Campaign Planner and Shorts Mode (BETA) for Ouroboros: plan campaign routes around your farms, track missions with live timers and optional notifications, and update your plan as you progress.</p>
+          </div>
+          <div class="changelog-item">
             <span class="tag">v3.03 Overkill Updates and Stability</span>
             <p>Added solver activity updates and improved Fragments search stability and error recovery.</p>
           </div>
@@ -469,6 +524,6 @@
     </section>
   </main>
 
-  <script type="module" src="script.js?v=3.0.5"></script>
+  <script type="module" src="script.js?v=3.2.4"></script>
 </body>
 </html>

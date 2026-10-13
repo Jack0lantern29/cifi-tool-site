@@ -1,15 +1,17 @@
-import { optimize, OptimizerValidationError } from "./optimizer.js?v=3.0.5";
-import { optimizeCrazy } from "./crazy-optimizer.js?v=3.0.5";
+import { optimize, OptimizerValidationError } from "./optimizer.js?v=3.2.4";
+import { optimizeCrazy } from "./crazy-optimizer.js?v=3.2.4";
+import { optimizeShorts } from "./shorts-optimizer.js?v=3.2.4";
 
 // Run search requests and send progress, results, or errors back to the page.
 self.addEventListener("message", async event => {
-  const { type, requestId, input } = event.data || {};
+  const { type, requestId, input, reservedFarms = [] } = event.data || {};
   if (type !== "optimize" || !requestId) return;
 
   const startedAt = performance.now();
   let latestCheckpoint = null;
   try {
     const callbacks = {
+      reservedFarms,
       // Send the latest search progress to the page.
       onProgress(progress) {
         self.postMessage({ type: "progress", requestId, progress });
@@ -20,7 +22,9 @@ self.addEventListener("message", async event => {
         self.postMessage({ type: "checkpoint", requestId, result: { ...result, durationMs: performance.now() - startedAt } });
       }
     };
-    const result = input?.searchEffort === "crazy"
+    const result = input?.campaignEnabled && input?.shortsEnabled
+      ? await optimizeShorts(input, callbacks)
+      : input?.searchEffort === "crazy"
       ? await optimizeCrazy(input, callbacks)
       : optimize(input, callbacks);
     self.postMessage({

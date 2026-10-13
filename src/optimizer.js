@@ -8,16 +8,16 @@ import {
   OURO_OFF_VISIBLE_FARMS,
   TYPE_ORDER,
   TYPE_RANK
-} from "./data.js?v=3.0.5";
-import { createSeededRandom, deriveSeed, formatRunId } from "./random.js?v=3.0.5";
+} from "./data.js?v=3.2.4";
+import { createSeededRandom, deriveSeed, formatRunId } from "./random.js?v=3.2.4";
 import {
   compareSummaries,
   describeObjective,
   getModeKind,
   normalizedHybridScore,
   summaryFromTotals
-} from "./objective.js?v=3.0.5";
-import { calculateGlobalSpeedMultiplier, validateInput } from "./validation.js?v=3.0.5";
+} from "./objective.js?v=3.2.4";
+import { calculateGlobalSpeedMultiplier, validateInput } from "./validation.js?v=3.2.4";
 
 const MIN_DURATION_MINS = 2 / 60;
 const EPS = 1e-9;
@@ -85,7 +85,7 @@ function buildMissionPool_(ui) {
       return;
     }
 
-    if (!isCampaignRow && ui.selectedFarmMissions && !ui.selectedFarmMissions.has(row.name)) {
+    if (!isCampaignRow && !ui.campaignEnabled && ui.selectedFarmMissions && !ui.selectedFarmMissions.has(row.name)) {
       return;
     }
 
@@ -1256,7 +1256,7 @@ function solveOptimizer_(ui, missions, campaignMission, rng, onProgress) {
     searchEffort: "standard",
     solutionStatus: "best-found",
     objective: { ...objective, upperBound: null, relativeGap: null },
-    solverStats: { engine: "CIFI heuristic", version: "3.0.5", nodes: 0, iterations: runResults.length },
+    solverStats: { engine: "CIFI heuristic", version: "3.2.4", nodes: 0, iterations: runResults.length },
     hybridIdeals: hybridIdeals ? { ...hybridIdeals, proven: false } : null
   };
 }
@@ -1297,6 +1297,9 @@ export function optimize(rawInput, options = {}) {
     selectedFarmMissions: effectiveSeedFarms,
     selectedCampaignFarmMissions: effectiveSeedFarms
   };
+  // Route preferences must not change the farm search or its established seed.
+  delete solverSeedInput.shortsEnabled;
+  delete solverSeedInput.shortsProgress;
   const solverSeed = Number.isInteger(options.seed) ? options.seed >>> 0 : deriveSeed(solverSeedInput);
   const rng = createSeededRandom(solverSeed);
   const onProgress = typeof options.onProgress === "function" ? options.onProgress : () => {};
