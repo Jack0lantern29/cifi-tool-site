@@ -239,6 +239,23 @@ test("saved settings preserve targets and active workers; older settings get emp
   assert.deepEqual(validateInput(repaired).errors, []);
 });
 
+test("old single-campaign settings migrate to planner targets without inventing completions", () => {
+  const legacy = createDefaultInput();
+  legacy.campaignEnabled = true;
+  legacy.campaignTargetName = "C3-5";
+  const migrated = sanitizePersistedInput(legacy);
+  assert.equal(migrated.shortsEnabled, true);
+  assert.equal(migrated.shortsProgress.C3.target, 5);
+  assert.ok(Object.values(migrated.shortsProgress).every(progress => progress.completed === 0 && progress.active === null));
+  assert.deepEqual(migrated.workers, legacy.workers);
+  assert.deepEqual(migrated.selectedCampaignFarmMissions, legacy.selectedCampaignFarmMissions);
+  assert.deepEqual(validateInput(migrated).errors, []);
+  migrated.campaignEnabled = false;
+  const disabled = sanitizePersistedInput(migrated);
+  assert.equal(disabled.shortsEnabled, false);
+  assert.equal(disabled.shortsProgress.C3.target, 5);
+});
+
 test("Overkill uses Shorts scheduling after optimising farms", async () => {
   const input = fixture();
   input.searchEffort = "crazy";

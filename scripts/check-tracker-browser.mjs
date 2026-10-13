@@ -99,6 +99,8 @@ try {
   assert.equal(await evaluate(`document.querySelector('#shorts-hours-C1').placeholder`), "00:00:00");
   assert.equal(await evaluate(`document.querySelector('#shorts-hours-C1').value`), "");
   assert.equal(await evaluate(`document.querySelector('label[for="shorts-hours-C1"]').textContent`), "Time remaining");
+  assert.equal(await evaluate(`document.querySelector('#campaignTarget')`), null);
+  assert.equal(await evaluate(`document.querySelector('#shortsEnabled')`), null);
   await click("Run Optimizer");
   await waitFor(`Array.from(document.querySelectorAll('button')).some(b=>b.textContent==='Track this plan'&&!b.disabled&&!b.closest('[hidden]'))`);
   await click("Track this plan");
@@ -183,7 +185,7 @@ try {
   assert.equal(await evaluate(`document.querySelector('#shortsTracker').hidden`), true);
   assert.equal(await evaluate(`document.querySelector('#plannerModeLabel').textContent`), "Campaign Planner");
   assert.equal(await evaluate(`document.querySelector('#shortsBeta').hidden`), false);
-  await evaluate(`document.querySelector('#campaignEnabled').click(); document.querySelector('#shortsEnabled').click();
+  await evaluate(`document.querySelector('#campaignEnabled').click();
     document.querySelector('#count-mining-pod').value='1000'; document.querySelector('#power-mining-pod').value='10000';
     document.querySelector('#shorts-target-C1').value='2'; document.querySelector('#campaignFarmClearAllBtn').click();`);
   assert.equal(await evaluate(`document.querySelector('#shorts-target-C4').closest('fieldset').hidden`), true);
@@ -215,7 +217,7 @@ try {
   for (const seconds of [3600, 30]) {
     const startedAt = Date.now();
     await evaluate(`window.confirm=()=>true; document.querySelector('#resetInputsBtn').click();
-      document.querySelector('#campaignEnabled').click(); document.querySelector('#shortsEnabled').click();
+      document.querySelector('#campaignEnabled').click();
       document.querySelector('#count-mining-pod').value='1000'; document.querySelector('#power-mining-pod').value='10000';
       document.querySelector('#shorts-target-C1').value='2'; document.querySelector('#campaignFarmClearAllBtn').click();
       document.querySelector('#shorts-running-C1').checked=true;
@@ -236,6 +238,28 @@ try {
     await waitFor(`document.querySelectorAll('.tracker-lane').length===3`);
     assert.equal(await evaluate(`JSON.parse(localStorage.getItem('cifi-shorts-tracker-v1')).missions['C1-1'].endsAt`), imported.endsAt);
   }
+  const legacySettings = JSON.parse(savedSettings);
+  legacySettings.input.shortsEnabled = false;
+  legacySettings.input.campaignTargetName = "C3-5";
+  for (const progress of Object.values(legacySettings.input.shortsProgress)) progress.target = 0;
+  const legacySeed = await send("Page.addScriptToEvaluateOnNewDocument", { source: `
+    localStorage.removeItem('cifi-shorts-tracker-v1');
+    localStorage.setItem('cifi-farm-mission-optimizer-state-v3', ${JSON.stringify(JSON.stringify(legacySettings))});
+  ` });
+  await send("Page.reload");
+  await waitFor(`document.documentElement.dataset.appVersion && document.querySelector('#shorts-target-C3').value==='5'`);
+  await send("Page.removeScriptToEvaluateOnNewDocument", { identifier: legacySeed.identifier });
+  assert.equal(await evaluate(`document.querySelector('#campaignEnabled').checked`), true);
+  assert.equal(await evaluate(`document.querySelector('#shortsControls').classList.contains('hidden')`), false);
+  await click("Run Optimizer");
+  await waitFor(`document.querySelector('#statusText').textContent==='Plan complete.'`);
+  await click("Track this plan");
+  assert.deepEqual(await evaluate(`JSON.parse(localStorage.getItem('cifi-shorts-tracker-v1')).targets`), { C1: 8, C2: 8, C3: 5, C4: 0 });
+  await evaluate(`document.querySelector('#campaignEnabled').click()`);
+  assert.equal(await evaluate(`localStorage.getItem('cifi-shorts-tracker-v1')`), null);
+  await click("Run Optimizer");
+  await waitFor(`document.querySelector('#statusText').textContent==='Completed'`);
+  assert.equal(await evaluate(`document.querySelector('#shortsOutput').classList.contains('hidden')`), true, "disabling the planner leaves farm-only optimisation");
   assert.deepEqual(exceptions, []);
   console.log("Browser checks passed: keyboard starts, manual completion, corrections, opt-in notifications, deduplication, refresh, live replan, failed/cancelled updates, reset, mobile, reduced motion, Campaign Planner and Ouroboros mode switching.");
 } finally {

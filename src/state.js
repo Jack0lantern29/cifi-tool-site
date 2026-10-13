@@ -116,11 +116,17 @@ export function sanitizePersistedInput(raw) {
     }
     return [section, { completed, target, active }];
   }));
+  // Move an old single-campaign target into the planner without guessing progress.
+  if (source.campaignEnabled && !source.shortsEnabled && visibleCampaigns.includes(source.campaignTargetName)) {
+    const [section, stage] = source.campaignTargetName.split("-");
+    shortsProgress[section].target = Math.max(shortsProgress[section].target, Number(stage));
+  }
   const candidate = {
     ...defaults,
     ...source,
     workers,
     shortsProgress,
+    shortsEnabled: Boolean(source.campaignEnabled),
     weights: Object.fromEntries(MATS.map(material => [material, Number(source.weights?.[material]) === 10 ? 10 : 1])),
     hybridFragmentPercent: safePercentage(source.hybridFragmentPercent, defaults.hybridFragmentPercent),
     fragmentsPerCompletion: safeNumber(source.fragmentsPerCompletion),

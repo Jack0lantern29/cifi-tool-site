@@ -129,13 +129,6 @@ function renderModeOptions(preferred = byId("modeSelect").value) {
   byId("modeSelect").value = options.includes(preferred) ? preferred : "Maximising Resources";
 }
 
-// Show available campaign targets and keep the current choice when possible.
-function renderCampaignTargets(preferred = byId("campaignTarget").value) {
-  const names = getVisibleCampaignNames(byId("ouroToggle").checked);
-  byId("campaignTarget").replaceChildren(...names.map(name => new Option(name, name)));
-  byId("campaignTarget").value = names.includes(preferred) ? preferred : (names.includes("C4-11") ? "C4-11" : names[0]);
-}
-
 function readShortsProgress() {
   return Object.fromEntries(CAMPAIGN_SECTIONS.map(section => [section, {
     completed: Number(byId(`shorts-completed-${section}`).value),
@@ -215,7 +208,7 @@ function createMissionTierMarkup(names, selected, inputClass, showUnlocks = fals
 
 // Refresh the farm choices and handle selection changes.
 function getCampaignFarmNames(useTargets = false) {
-  const progress = byId("campaignEnabled").checked && byId("shortsEnabled").checked ? readShortsProgress() : null;
+  const progress = byId("campaignEnabled").checked ? readShortsProgress() : null;
   return getVisibleFarmNames(byId("ouroToggle").checked, progress, useTargets);
 }
 
@@ -237,26 +230,14 @@ function renderFarmMissions() {
 
 // Refresh the farms allowed to run alongside the campaign.
 function renderCampaignFarmMissions() {
-  const container = byId("campaignFarmMissionSelectionGrid");
+  const futureContainer = byId("futureFarmMissionSelectionGrid");
   if (!byId("campaignEnabled").checked) {
-    container.replaceChildren();
+    futureContainer.replaceChildren();
     byId("futureFarmSelection").classList.add("hidden");
     return;
   }
   const unlocked = getCampaignFarmNames();
-  const shorts = byId("shortsEnabled").checked;
-  container.classList.toggle("hidden", shorts);
-  container.innerHTML = createMissionTierMarkup(unlocked, selectedCampaignFarmMissions, "campaign-farm-input");
-  container.querySelectorAll(".campaign-farm-input").forEach(input => {
-    input.addEventListener("change", () => {
-      if (input.checked) selectedCampaignFarmMissions.add(input.value);
-      else selectedCampaignFarmMissions.delete(input.value);
-      renderCampaignFarmMissions();
-      scheduleSave();
-    });
-  });
-  byId("futureFarmSelection").classList.toggle("hidden", !shorts);
-  const futureContainer = byId("futureFarmMissionSelectionGrid");
+  byId("futureFarmSelection").classList.remove("hidden");
   futureContainer.innerHTML = createMissionTierMarkup(getVisibleFarmNames(byId("ouroToggle").checked), selectedCampaignFarmMissions, "future-farm-input", true, unlocked);
   futureContainer.querySelectorAll(".future-farm-input").forEach(input => {
     input.addEventListener("change", () => {
@@ -273,15 +254,12 @@ function syncConditionalVisibility() {
   const ouro = byId("ouroToggle").checked;
   const campaign = byId("campaignEnabled").checked;
   const hybrid = byId("modeSelect").value === "Fragments + Resources";
-  const shorts = byId("shortsEnabled").checked;
   byId("plannerModeLabel").textContent = ouro ? "Shorts Mode" : "Campaign Planner";
   byId("plannerModeHelp").textContent = ouro ? "Plan and track campaigns across C1–C4." : "Plan and track C1–C3 campaigns 1–8.";
-  document.querySelectorAll(".ouro-only, .campaign-enabled-only, .hybrid-mode-only, .shorts-only, .single-campaign-only").forEach(element => {
+  document.querySelectorAll(".ouro-only, .campaign-enabled-only, .hybrid-mode-only").forEach(element => {
     const visible = (!element.classList.contains("ouro-only") || ouro) &&
       (!element.classList.contains("campaign-enabled-only") || campaign) &&
-      (!element.classList.contains("hybrid-mode-only") || hybrid) &&
-      (!element.classList.contains("shorts-only") || shorts) &&
-      (!element.classList.contains("single-campaign-only") || !shorts);
+      (!element.classList.contains("hybrid-mode-only") || hybrid);
     element.classList.toggle("hidden", !visible);
     if (element.matches("section, div.field-card")) element.setAttribute("aria-hidden", String(!visible));
   });
@@ -321,8 +299,7 @@ function readFormInput() {
     hybridFragmentPercent: byId("hybridFragmentPercent").value,
     fragmentsPerCompletion: byId("baseFragmentsInput").value,
     campaignEnabled: byId("campaignEnabled").checked,
-    campaignTargetName: byId("campaignTarget").value,
-    shortsEnabled: byId("shortsEnabled").checked,
+    shortsEnabled: byId("campaignEnabled").checked,
     shortsProgress: readShortsProgress(),
     relic11Level: byId("relic11").value,
     modifiers: {
@@ -345,7 +322,6 @@ function applyInput(input) {
   byId("searchEffort").checked = input.searchEffort === "crazy";
   byId("hybridFragmentPercent").value = input.hybridFragmentPercent;
   updateHybridWeightDisplay();
-  renderCampaignTargets(input.campaignTargetName);
   TYPE_ORDER.forEach(type => {
     const key = typeKey(type);
     byId(`power-${key}`).value = input.workers[type].power;
@@ -355,8 +331,6 @@ function applyInput(input) {
   selectedFarmMissions = new Set(input.selectedFarmMissions);
   selectedCampaignFarmMissions = new Set(input.selectedCampaignFarmMissions);
   byId("campaignEnabled").checked = input.campaignEnabled;
-  byId("campaignTarget").value = input.campaignTargetName;
-  byId("shortsEnabled").checked = input.shortsEnabled;
   renderShortsControls(input.shortsProgress);
   byId("relic11").value = input.relic11Level;
   byId("baseFragmentsInput").value = input.fragmentsPerCompletion;
@@ -846,12 +820,12 @@ function initialiseSelectionButtons() {
     renderFarmMissions(); renderCampaignFarmMissions(); scheduleSave();
   });
   byId("campaignFarmSelectAllBtn").addEventListener("click", () => {
-    const names = byId("shortsEnabled").checked ? getVisibleFarmNames(byId("ouroToggle").checked) : getCampaignFarmNames();
+    const names = getVisibleFarmNames(byId("ouroToggle").checked);
     names.forEach(name => selectedCampaignFarmMissions.add(name));
     renderCampaignFarmMissions(); scheduleSave();
   });
   byId("campaignFarmClearAllBtn").addEventListener("click", () => {
-    const names = byId("shortsEnabled").checked ? getVisibleFarmNames(byId("ouroToggle").checked) : getCampaignFarmNames();
+    const names = getVisibleFarmNames(byId("ouroToggle").checked);
     names.forEach(name => selectedCampaignFarmMissions.delete(name));
     renderCampaignFarmMissions(); scheduleSave();
   });
@@ -862,9 +836,7 @@ function initialiseForm() {
   byId("ouroToggle").addEventListener("change", () => {
     const shortsProgress = readShortsProgress();
     const mode = byId("modeSelect").value;
-    const target = byId("campaignTarget").value;
     renderModeOptions(mode);
-    renderCampaignTargets(target);
     renderShortsControls(shortsProgress);
     renderFarmMissions();
     syncConditionalVisibility();
@@ -872,7 +844,6 @@ function initialiseForm() {
     if (!tracker) clearOutput();
   });
   byId("campaignEnabled").addEventListener("change", () => { syncConditionalVisibility(); scheduleSave(); });
-  byId("shortsEnabled").addEventListener("change", () => { syncConditionalVisibility(); scheduleSave(); });
   byId("shortsRecalculateBtn").addEventListener("click", runOptimizer);
   byId("modeSelect").addEventListener("change", syncConditionalVisibility);
   byId("hybridFragmentPercent").addEventListener("input", updateHybridWeightDisplay);
@@ -884,7 +855,7 @@ function initialiseForm() {
   });
   byId("optimizer").addEventListener("change", event => {
     if (event.target.matches("input[id], select[id]")) {
-      if (/^shorts-(completed|running|hours|active)-/.test(event.target.id) || ["campaignEnabled", "shortsEnabled", "ouroToggle"].includes(event.target.id)) stopTrackingForNewPlan();
+      if (/^shorts-(completed|running|hours|active)-/.test(event.target.id) || ["campaignEnabled", "ouroToggle"].includes(event.target.id)) stopTrackingForNewPlan();
       updateShortsStaleness();
       window.clearTimeout(saveTimer);
       persistCurrentIfValid();
@@ -944,7 +915,6 @@ function syncTrackerForm(preserveTargets = true) {
     progress[key].target = Math.max(progress[key].completed + (progress[key].active ? 1 : 0), Number(byId(`shorts-target-${key}`).value));
   });
   byId("campaignEnabled").checked = true;
-  byId("shortsEnabled").checked = true;
   renderShortsControls(progress);
   syncConditionalVisibility();
   renderFarmMissions();

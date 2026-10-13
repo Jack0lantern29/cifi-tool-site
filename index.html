@@ -255,18 +255,14 @@
           <p>Select campaigns and the farms to keep running alongside them.</p>
         </div>
 
-        <div class="grid grid-3">
+        <div class="grid grid-2">
           <div class="field-card field-card--checkbox">
-            <label class="field-label">Campaign Enabled?</label>
-            <label class="checkbox-row">
+            <label class="checkbox-row" for="campaignEnabled">
               <input id="campaignEnabled" type="checkbox" />
-              <span>Enable Campaign Optimization</span>
+              <span id="plannerModeLabel">Campaign Planner</span>
+              <span id="shortsBeta" class="beta-tag">BETA</span>
             </label>
-          </div>
-
-          <div class="field-card campaign-enabled-only single-campaign-only hidden">
-            <label class="field-label" for="campaignTarget">Campaign Target</label>
-            <select id="campaignTarget"></select>
+            <p id="plannerModeHelp" class="tiny-note">Plan and track C1–C3 campaigns 1–8.</p>
           </div>
 
           <div class="field-card ouro-only campaign-enabled-only hidden">
@@ -275,15 +271,7 @@
           </div>
         </div>
 
-        <div class="field-card campaign-enabled-only hidden shorts-toggle">
-          <label class="checkbox-row" for="shortsEnabled">
-            <input id="shortsEnabled" type="checkbox" />
-            <span id="plannerModeLabel">Campaign Planner</span>
-            <span id="shortsBeta" class="beta-tag">BETA</span>
-          </label>
-          <p id="plannerModeHelp" class="tiny-note">Plan and track C1–C3 campaigns 1–8.</p>
-        </div>
-        <div id="shortsControls" class="campaign-enabled-only shorts-only hidden">
+        <div id="shortsControls" class="campaign-enabled-only hidden">
           <p class="tiny-note shorts-help">Choose your completed campaigns and targets. Select “None completed” to start from campaign 1.</p>
           <div id="shortsProgressGrid" class="shorts-progress-grid"></div>
           <p class="tiny-note shorts-help">For running campaigns, enter the remaining time and assigned workers. Editing progress stops live tracking.</p>
@@ -298,7 +286,6 @@
             </div>
           </div>
 
-          <div class="mission-tier-grid" id="campaignFarmMissionSelectionGrid"></div>
           <details id="futureFarmSelection" class="future-farm-selection hidden">
             <summary>Farms to start now or when unlocked</summary>
             <p class="tiny-note">Select farms for this plan. Keep their workers assigned once each farm starts.</p>
