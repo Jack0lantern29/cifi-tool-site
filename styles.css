@@ -828,7 +828,7 @@ select:focus {
   font-variant-numeric: tabular-nums;
 }
 
-.output-totals-table td:last-child,
+.output-totals-table td:last-child:not([colspan]),
 .output-totals-table th:last-child {
   text-align: right;
 }
@@ -1051,7 +1051,7 @@ select:focus {
   font-variant-numeric: tabular-nums;
 }
 
-.output-unassigned-table td:last-child,
+.output-unassigned-table td:last-child:not([colspan]),
 .output-unassigned-table th:last-child {
   text-align: right;
 }
