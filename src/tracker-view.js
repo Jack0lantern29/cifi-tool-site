@@ -1,10 +1,10 @@
-import { CAMPAIGN_SECTIONS } from "./validation.js?v=3.2.4";
-import { TYPE_ORDER } from "./data.js?v=3.2.4";
-import { SECTION_REQUIREMENTS } from "./campaign-unlocks.js?v=3.2.4";
-import { campaignStartProblem, trackerActions, trackerFreeWorkers } from "./shorts-tracker.js?v=3.2.4";
-import { formatDuration } from "./progress.js?v=3.2.4";
-import { formatLocalETA } from "./eta.js?v=3.2.4";
-import { DURATION_PATTERN, parseRemainingTime, formatRemainingTime } from "./duration-input.js?v=3.2.4";
+import { CAMPAIGN_SECTIONS } from "./validation.js?v=3.2.5";
+import { TYPE_ORDER } from "./data.js?v=3.2.5";
+import { SECTION_REQUIREMENTS } from "./campaign-unlocks.js?v=3.2.5";
+import { campaignStartProblem, trackerActions, trackerFreeWorkers } from "./shorts-tracker.js?v=3.2.5";
+import { formatDuration } from "./progress.js?v=3.2.5";
+import { formatLocalETA } from "./eta.js?v=3.2.5";
+import { DURATION_PATTERN, parseRemainingTime, formatRemainingTime } from "./duration-input.js?v=3.2.5";
 
 const node = (tag, className = "", text = "") => {
   const element = document.createElement(tag);
@@ -40,7 +40,7 @@ export function createTrackerView(root, callbacks) {
   notice.setAttribute("role", "status");
   const notificationHelp = node("p", "tiny-note tracker-notification-help");
   const next = node("section", "tracker-next");
-  const nextTitle = node("h4", "", "Next action");
+  const nextTitle = node("h4", "", "Available actions now");
   const actionList = node("div", "tracker-actions");
   next.append(nextTitle, actionList);
   const grid = node("div", "tracker-grid");
@@ -66,7 +66,7 @@ export function createTrackerView(root, callbacks) {
 
   function renderActions(now) {
     const actions = trackerActions(state, now);
-    const signature = JSON.stringify([actions.finished.map(job => job.name), actions.farms.map(farm => farm.name), actions.ready.map(job => job.name), actions.running.map(job => job.name), actions.complete, options.busy, options.settingsChanged]);
+    const signature = JSON.stringify([actions.finished.map(job => job.name), actions.surplusFarms, actions.farms.map(farm => farm.name), actions.ready.map(job => job.name), actions.running.map(job => job.name), actions.complete, options.busy, options.settingsChanged]);
     if (signature === actionSignature) {
       const clock = actionList.querySelector("[data-next-countdown]");
       if (clock && actions.running[0]) clock.textContent = `${actions.running[0].name} · ${remaining(actions.running[0], now)} remaining`;
@@ -85,6 +85,8 @@ export function createTrackerView(root, callbacks) {
     };
     if (actions.finished.length) {
       actions.finished.forEach(job => appendAction(`${job.name} is ready to confirm`, "Confirm once it has finished in-game.", "Confirm finished", () => callbacks.onAction({ type: "complete", name: job.name }), options.busy));
+    } else if (actions.surplusFarms.length) {
+      actions.surplusFarms.forEach(farm => appendAction(`Reduce ${farm.name} to ${workersText(farm.workers)}`, "This crew still reaches the two-second minimum. Remove the extra workers in-game, confirm here, then update the remaining plan.", "Confirm reduced crew", () => callbacks.onAction({ type: "trim-farm", name: farm.name }), options.busy || options.settingsChanged));
     } else if (actions.farms.length) {
       const free = trackerFreeWorkers(state);
       actions.farms.forEach(farm => {
@@ -92,6 +94,7 @@ export function createTrackerView(root, callbacks) {
         appendAction(`Start farming ${farm.name}`, `${workersText(farm.workers)}${unavailable ? " · Waiting for released workers. Update the plan if needed." : " · Keep this crew assigned."}`, "Farm is running", () => callbacks.onAction({ type: "farm", name: farm.name }), options.busy || options.settingsChanged || unavailable);
       });
     } else if (actions.ready.length) {
+      actionList.append(node("p", "tiny-note", actions.ready.length > 1 ? "These crews fit together. Launch these missions concurrently, then confirm each start below." : "Launch this mission with the listed crew. Later launches remain queued until their workers and plan step are ready."));
       actions.ready.forEach(job => appendAction(`Launch ${job.name} in-game`, `${workersText(job.workers)} · ${formatDuration(job.durationMs)}`, "Start mission", () => callbacks.onAction({ type: "start", name: job.name }), options.busy || options.settingsChanged));
     } else if (actions.complete) {
       appendAction("All targets confirmed complete", "Finish tracking to plan your next targets.", "Finish tracking", callbacks.onFinish, options.busy);

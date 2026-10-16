@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createDefaultInput } from "../src/validation.js";
 import { optimizeShorts } from "../src/shorts-optimizer.js";
+import { createTracker, trackerActions, transitionTracker, trackerFreeWorkers } from "../src/shorts-tracker.js";
 
 // User-provided settings for the reported ~37-hour route (13 October 2026).
 // A positive fragment yield is normalised by Overkill and does not alter its allocation.
@@ -14,6 +15,37 @@ export function screenshotInput() {
   [[10, 12], [10, 12], [8, 12], [6, 8]].forEach(([completed, target], index) => { input.shortsProgress[`C${index + 1}`] = { completed, target, active: null }; });
   return input;
 }
+
+test("October 17 settings cap F1-3 at 18 corvettes and launch four sections concurrently", async () => {
+  const input = screenshotInput();
+  input.searchEffort = "standard";
+  [[6.5, 11393], [13, 6259], [22, 3009], [41, 1967]].forEach(([power, count], index) => { input.workers[Object.keys(input.workers)[index]] = { power, count }; });
+  input.modifiers.productivityLevel = 11;
+  input.selectedCampaignFarmMissions = ["F1-1", "F1-2", "F1-3", "F2-1", "F2-2", "F3-1"];
+  [[8, 12], [8, 12], [9, 12], [0, 8]].forEach(([completed, target], index) => { input.shortsProgress[`C${index + 1}`] = { completed, target, active: null }; });
+  const result = await optimizeShorts(input);
+  assert.deepEqual(result.assignments.filter(row => row.name === "F1-3"), [{ name: "F1-3", type: "Combat Corvette", count: 18 }]);
+  let state = createTracker(result, input, 1000);
+  const ready = trackerActions(state, 1000).ready;
+  assert.equal(ready.length, 4);
+  for (const job of ready) state = transitionTracker(state, { type: "start", name: job.name }, 1000);
+  assert.ok(Object.values(trackerFreeWorkers(state)).every(count => count >= 0));
+  assert.ok(result.shortsPlan.totalHours - result.shortsPlan.certificate.lowerBoundHours < 5 / 3600);
+  // Restore the overstaffed farm from the screenshot: no crew is released
+  // until its in-game reduction is confirmed, including after save/reopen.
+  state = createTracker(result, input, 1000);
+  state.farms["F1-3"].workers["Combat Corvette"] = 19;
+  state.farms["F1-3"].workers["Titan Hauler"] = 1;
+  const before = trackerFreeWorkers(state);
+  const proposal = trackerActions(state, 1000).surplusFarms.find(farm => farm.name === "F1-3");
+  assert.equal(proposal.workers["Combat Corvette"], 18);
+  assert.equal(proposal.workers["Titan Hauler"], 0);
+  assert.deepEqual(trackerFreeWorkers(state), before);
+  state = transitionTracker(state, { type: "trim-farm", name: "F1-3" }, 1000);
+  assert.equal(trackerFreeWorkers(state)["Combat Corvette"], before["Combat Corvette"] + 1);
+  assert.equal(trackerFreeWorkers(state)["Titan Hauler"], before["Titan Hauler"] + 1);
+  assert.equal(state.needsUpdate, true);
+});
 
 test("reported Shorts settings minimise the final target time and include an independent bound", { timeout: 30000 }, async t => {
   const input = screenshotInput();

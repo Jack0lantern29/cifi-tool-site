@@ -1,5 +1,5 @@
-import { MATS, MISSION_DATA, TYPE_ORDER, getFx4FragmentBonusMultiplier } from "./data.js?v=3.2.4";
-import { calculateGlobalSpeedMultiplier, getVisibleFarmNames } from "./validation.js?v=3.2.4";
+import { MATS, MISSION_DATA, TYPE_ORDER, getFx4FragmentBonusMultiplier } from "./data.js?v=3.2.5";
+import { calculateGlobalSpeedMultiplier, getVisibleFarmNames } from "./validation.js?v=3.2.5";
 
 export function reserveTrackedFarms(input, assignments) {
   const visible = getVisibleFarmNames(input.ouroUnlocked, input.shortsProgress);

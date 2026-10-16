@@ -70,6 +70,34 @@ test("imported running campaigns have no invented start or percentage; correctio
   assert.equal(state.completed.C1, 1);
 });
 
+test("future plan steps stay queued even when their crew is individually free", async () => {
+  let { state } = await fixture();
+  const first = state.missions["C1-1"];
+  const later = state.missions["C4-1"];
+  later.plannedStartHours = first.plannedEndHours;
+  later.plannedEndHours = later.plannedStartHours + later.durationMs / 3600000;
+  assert.match(campaignStartProblem(state, later.name, now), /Queued after C1-1/);
+  assert.ok(!trackerActions(state, now).ready.some(job => job.name === later.name));
+  assert.throws(() => action(state, "start", later.name), /Queued after/);
+  // Waiting past the estimate cannot substitute for starting and finishing.
+  assert.match(campaignStartProblem(state, later.name, now + 86400000), /Queued after/);
+  state = action(state, "start", first.name);
+  const end = state.missions[first.name].endsAt;
+  state = action(state, "complete", first.name, end);
+  assert.equal(campaignStartProblem(state, later.name, end), null);
+});
+
+test("displayed concurrent starts share one worker pool and can all be confirmed", async () => {
+  let { state } = await fixture();
+  state.missions["C1-1"].workers = crew(600);
+  state.missions["C4-1"].workers = crew(600);
+  state.missions["C4-1"].plannedStartHours = 0;
+  const ready = trackerActions(state, now).ready;
+  assert.equal(ready.length, 1, "two individually feasible launches cannot double book 1,000 workers");
+  for (const job of ready) state = action(state, "start", job.name);
+  assert.ok(Object.values(trackerFreeWorkers(state)).every(count => count >= 0));
+});
+
 test("cross-section unlocks require confirmed C1-8 and C2-8; C4 is independent", async () => {
   const input = inputFixture();
   input.shortsProgress.C1 = { completed: 7, target: 8, active: null };
@@ -78,6 +106,7 @@ test("cross-section unlocks require confirmed C1-8 and C2-8; C4 is independent",
   assert.match(campaignStartProblem(state, "C2-1", now), /C1-8/);
   assert.equal(campaignStartProblem(state, "C4-1", now), null);
   state = action(state, "start", "C1-8");
+  state = action(state, "start", "C4-1");
   const end = state.missions["C1-8"].endsAt;
   assert.match(campaignStartProblem(state, "C2-1", end), /Confirm/);
   state = action(state, "complete", "C1-8", end);
@@ -91,6 +120,7 @@ test("cross-section unlocks require confirmed C1-8 and C2-8; C4 is independent",
 
 test("newly unlocked farms require confirmation and retain crews before subsequent campaign starts", async () => {
   const input = inputFixture();
+  input.shortsProgress.C4.target = 0;
   input.selectedCampaignFarmMissions = ["F1-1"];
   let { state } = await fixture(input);
   assert.equal(state.farms["F1-1"].status, "pending");

@@ -1,12 +1,12 @@
-import { MISSION_DATA, TYPE_ORDER } from "./data.js?v=3.2.4";
-import { CAMPAIGN_SECTIONS, calculateGlobalSpeedMultiplier, getVisibleFarmNames, validateInput } from "./validation.js?v=3.2.4";
-import { optimize, OptimizerValidationError } from "./optimizer.js?v=3.2.4";
-import { optimizeCrazy } from "./crazy-optimizer.js?v=3.2.4";
-import { createSeededRandom, deriveSeed, formatRunId } from "./random.js?v=3.2.4";
-import { exactShorts, refineShorts, balancedShorts, polishShorts, shortsLowerBound } from "./shorts-search.js?v=3.2.4";
-import { checkFarmReservationHorizon, createFarmReservations, farmEventsForJobs, reserveUnlockedFarms } from "./farm-reservations.js?v=3.2.4";
-import { campaignPrerequisite, includeCampaignPrerequisites, isCampaignReady } from "./campaign-unlocks.js?v=3.2.4";
-import { mergeTrackedFarms, reserveTrackedFarms } from "./tracked-farms.js?v=3.2.4";
+import { MISSION_DATA, TYPE_ORDER } from "./data.js?v=3.2.5";
+import { CAMPAIGN_SECTIONS, calculateGlobalSpeedMultiplier, getVisibleFarmNames, validateInput } from "./validation.js?v=3.2.5";
+import { optimize, OptimizerValidationError } from "./optimizer.js?v=3.2.5";
+import { optimizeCrazy } from "./crazy-optimizer.js?v=3.2.5";
+import { createSeededRandom, deriveSeed, formatRunId } from "./random.js?v=3.2.5";
+import { exactShorts, refineShorts, balancedShorts, polishShorts, shortsLowerBound } from "./shorts-search.js?v=3.2.5";
+import { checkFarmReservationHorizon, createFarmReservations, farmEventsForJobs, reserveUnlockedFarms } from "./farm-reservations.js?v=3.2.5";
+import { campaignPrerequisite, includeCampaignPrerequisites, isCampaignReady } from "./campaign-unlocks.js?v=3.2.5";
+import { mergeTrackedFarms, reserveTrackedFarms } from "./tracked-farms.js?v=3.2.5";
 
 const MIN_HOURS = 2 / 3600;
 const MISSIONS = new Map(MISSION_DATA.map(mission => [mission.name, mission]));

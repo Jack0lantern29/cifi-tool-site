@@ -2,16 +2,16 @@ import {
   farmUnlockCampaign,
   MATS,
   TYPE_ORDER
-} from "./src/data.js?v=3.2.4";
-import { canonicalStringify } from "./src/random.js?v=3.2.4";
-import { progressAtShortsStep } from "./src/shorts-progress.js?v=3.2.4";
-import { etaTimestamp, formatLocalETA } from "./src/eta.js?v=3.2.4";
-import { DURATION_PATTERN, parseRemainingTime, formatRemainingTime } from "./src/duration-input.js?v=3.2.4";
-import { createTracker, transitionTracker, trackerActions, trackerProgress, trackerSettingsKey, prepareTrackerUpdate, mergeTrackerUpdate, saveTracker, loadTracker, clearTracker, pendingNotifications, TRACKER_STORAGE_KEY } from "./src/shorts-tracker.js?v=3.2.4";
-import { createTrackerView, SECTION_TITLES } from "./src/tracker-view.js?v=3.2.4";
-import { buildProgressView, formatDuration, formatSolverUpdateAge, formatSolverWork } from "./src/progress.js?v=3.2.4";
-import { clearState, loadState, saveState } from "./src/state.js?v=3.2.4";
-import { OptimizerCancelledError, OptimizerWorkerClient } from "./src/worker-client.js?v=3.2.4";
+} from "./src/data.js?v=3.2.5";
+import { canonicalStringify } from "./src/random.js?v=3.2.5";
+import { progressAtShortsStep } from "./src/shorts-progress.js?v=3.2.5";
+import { etaTimestamp, formatLocalETA } from "./src/eta.js?v=3.2.5";
+import { DURATION_PATTERN, parseRemainingTime, formatRemainingTime } from "./src/duration-input.js?v=3.2.5";
+import { createTracker, transitionTracker, trackerActions, trackerProgress, trackerSettingsKey, prepareTrackerUpdate, mergeTrackerUpdate, saveTracker, loadTracker, clearTracker, pendingNotifications, TRACKER_STORAGE_KEY } from "./src/shorts-tracker.js?v=3.2.5";
+import { createTrackerView, SECTION_TITLES } from "./src/tracker-view.js?v=3.2.5";
+import { buildProgressView, formatDuration, formatSolverUpdateAge, formatSolverWork } from "./src/progress.js?v=3.2.5";
+import { clearState, loadState, saveState } from "./src/state.js?v=3.2.5";
+import { OptimizerCancelledError, OptimizerWorkerClient } from "./src/worker-client.js?v=3.2.5";
 import {
   createDefaultInput,
   CAMPAIGN_SECTIONS,
@@ -19,9 +19,9 @@ import {
   getVisibleCampaignNames,
   getVisibleFarmNames,
   validateInput
-} from "./src/validation.js?v=3.2.4";
+} from "./src/validation.js?v=3.2.5";
 
-const APP_VERSION = "3.2.4";
+const APP_VERSION = "3.2.5";
 const elements = new Map();
 // Find a page element and remember it for later use.
 const byId = id => {
@@ -55,7 +55,7 @@ let lastSolverUpdateAt = null;
 let lastSolverUpdate = 0;
 const workerClient = new OptimizerWorkerClient(() => {
   if (!window.Worker) throw new Error("This browser does not support background optimisation.");
-  return new Worker(new URL("./src/worker.js?v=3.2.4", import.meta.url), { type: "module" });
+  return new Worker(new URL("./src/worker.js?v=3.2.5", import.meta.url), { type: "module" });
 });
 
 // Show the selected tab and optionally move focus to it.
@@ -153,13 +153,13 @@ function renderShortsControls(progress = createDefaultInput().shortsProgress) {
     const options = (selected, emptyLabel) => `<option value="0"${selected === 0 ? " selected" : ""}>${emptyLabel}</option>` + names.map((name, index) => `<option value="${index + 1}"${selected === index + 1 ? " selected" : ""}>${name}</option>`).join("");
     return `<fieldset class="shorts-section"${max ? "" : " disabled hidden"}>
       <legend>${SECTION_TITLES[section]}</legend>
-      <label class="field-label" for="shorts-completed-${section}">Last completed</label>
+      <label class="field-label" for="shorts-completed-${section}">Last mission finished</label>
       <select id="shorts-completed-${section}">${options(completed, "None completed")}</select>
-      <label class="field-label" for="shorts-target-${section}">Target campaign</label>
+      <label class="field-label" for="shorts-target-${section}">Finish through mission</label>
       <select id="shorts-target-${section}">${options(target, "No target")}</select>
       <details class="shorts-running-fields"${entry.active && max ? " open" : ""}>
-        <summary>Campaign already running</summary>
-        <label class="checkbox-row"><input id="shorts-running-${section}" type="checkbox"${entry.active && completed < target ? " checked" : ""}> The next campaign is already running</label>
+        <summary>Enter a mission already running</summary>
+        <label class="checkbox-row"><input id="shorts-running-${section}" type="checkbox"${entry.active && completed < target ? " checked" : ""}${completed >= max ? " disabled" : ""}> <span id="shorts-running-label-${section}">${completed < max ? `${section}-${completed + 1} is already running` : "All missions in this section are finished"}</span></label>
         <label class="field-label" for="shorts-hours-${section}">Time remaining</label>
         <input id="shorts-hours-${section}" class="time-remaining-input" type="text" placeholder="00:00:00" pattern="${DURATION_PATTERN}" title="Hours:minutes:seconds (e.g. 02:30:00)" autocomplete="off" spellcheck="false">
         <div class="shorts-worker-grid">${TYPE_ORDER.map((type, index) => `<div>
@@ -180,6 +180,9 @@ function renderShortsControls(progress = createDefaultInput().shortsProgress) {
       const target = byId(`shorts-target-${section}`);
       if (Number(target.value) < completed) target.value = String(completed);
       byId(`shorts-running-${section}`).checked = false;
+      const max = byId(`shorts-completed-${section}`).options.length - 1;
+      byId(`shorts-running-${section}`).disabled = completed >= max;
+      byId(`shorts-running-label-${section}`).textContent = completed < max ? `${section}-${completed + 1} is already running` : "All missions in this section are finished";
       renderFarmMissions();
       renderCampaignFarmMissions();
       scheduleSave();
@@ -925,7 +928,7 @@ function syncTrackerForm(preserveTargets = true) {
 function trackerAction(action) {
   if (!tracker || workerClient.isRunning) return;
   try {
-    if (["start", "farm"].includes(action.type) && trackerSettingsChanged()) throw new Error("Update the remaining plan to apply changed settings first.");
+    if (["start", "farm", "trim-farm"].includes(action.type) && trackerSettingsChanged()) throw new Error("Update the remaining plan to apply changed settings first.");
     tracker = transitionTracker(tracker, action);
     trackerEpoch++;
     storeTracker();

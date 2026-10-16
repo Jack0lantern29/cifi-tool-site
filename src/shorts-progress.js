@@ -1,4 +1,4 @@
-import { CAMPAIGN_SECTIONS } from "./validation.js?v=3.2.4";
+import { CAMPAIGN_SECTIONS } from "./validation.js?v=3.2.5";
 
 // Capture progress immediately after completions, before this step's new launches.
 export function progressAtShortsStep(progress, plan, timeHours) {

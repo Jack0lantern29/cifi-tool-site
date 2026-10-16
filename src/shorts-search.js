@@ -1,6 +1,6 @@
-import { TYPE_ORDER } from "./data.js?v=3.2.4";
-import { checkFarmReservationHorizon, reserveUnlockedFarms } from "./farm-reservations.js?v=3.2.4";
-import { isCampaignReady } from "./campaign-unlocks.js?v=3.2.4";
+import { TYPE_ORDER } from "./data.js?v=3.2.5";
+import { checkFarmReservationHorizon, reserveUnlockedFarms } from "./farm-reservations.js?v=3.2.5";
+import { isCampaignReady } from "./campaign-unlocks.js?v=3.2.5";
 
 const MIN_HOURS = 2 / 3600;
 const counts = source => Object.fromEntries(TYPE_ORDER.map(type => [type, source?.[type] || 0]));

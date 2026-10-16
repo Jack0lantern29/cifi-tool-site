@@ -1,8 +1,8 @@
-import { ALL_CAMPAIGN_MISSIONS, ALL_FARM_MISSIONS, MISSION_DATA, TYPE_ORDER, farmUnlockCampaign } from "./data.js?v=3.2.4";
-import { CAMPAIGN_SECTIONS, validateInput } from "./validation.js?v=3.2.4";
-import { SECTION_REQUIREMENTS } from "./campaign-unlocks.js?v=3.2.4";
-import { checkFarmReservationHorizon, createFarmReservations } from "./farm-reservations.js?v=3.2.4";
-import { canonicalStringify } from "./random.js?v=3.2.4";
+import { ALL_CAMPAIGN_MISSIONS, ALL_FARM_MISSIONS, MISSION_DATA, TYPE_ORDER, farmUnlockCampaign } from "./data.js?v=3.2.5";
+import { CAMPAIGN_SECTIONS, calculateGlobalSpeedMultiplier, validateInput } from "./validation.js?v=3.2.5";
+import { SECTION_REQUIREMENTS } from "./campaign-unlocks.js?v=3.2.5";
+import { checkFarmReservationHorizon, createFarmReservations } from "./farm-reservations.js?v=3.2.5";
+import { canonicalStringify } from "./random.js?v=3.2.5";
 
 export const TRACKER_STORAGE_KEY = "cifi-shorts-tracker-v1";
 const crew = value => Object.fromEntries(TYPE_ORDER.map(type => [type, value?.[type] || 0]));
@@ -73,6 +73,25 @@ export function dueFarms(state) {
   return Object.values(state.farms).filter(farm => farm.status === "pending" && state.completed[section(farm.unlockCampaign)] >= stage(farm.unlockCampaign));
 }
 
+// Older saved plans keep their actual farm crews until the user confirms a
+// change in-game. Offer surplus releases without silently freeing those workers.
+export function surplusFarmCrews(state) {
+  const speed = calculateGlobalSpeedMultiplier(state.input);
+  return Object.values(state.farms).filter(farm => farm.status === "reserved").flatMap(farm => {
+    const workers = { ...farm.workers };
+    const required = MISSION_DATA.find(row => row.name === farm.name).minutes / (speed * (2 / 60));
+    let power = TYPE_ORDER.reduce((total, type) => total + workers[type] * state.input.workers[type].power, 0);
+    if (power < required) return [];
+    for (const type of [...TYPE_ORDER].reverse()) {
+      const unit = state.input.workers[type].power;
+      const remove = unit > 0 ? Math.min(workers[type], Math.max(0, Math.floor((power - required) / unit))) : workers[type];
+      workers[type] -= remove;
+      power -= remove * unit;
+    }
+    return sameCrew(workers, farm.workers) ? [] : [{ name: farm.name, workers }];
+  });
+}
+
 export function campaignStartProblem(state, name, now = Date.now()) {
   const job = state.missions[name];
   if (!job || job.status !== "queued") return "This campaign is not queued.";
@@ -82,6 +101,12 @@ export function campaignStartProblem(state, name, now = Date.now()) {
   const required = SECTION_REQUIREMENTS[job.section];
   if (required && state.completed[required.section] < required.stage) return `Complete ${required.section}-${required.stage} first.`;
   if (dueFarms(state).length) return "Confirm the newly unlocked farm assignments first.";
+  // Follow event order, not elapsed wall time: a delayed or unconfirmed launch
+  // must not make crews from a later step appear available ahead of schedule.
+  const before = Object.values(state.missions).filter(other => other.name !== name && other.status !== "completed" &&
+    (other.plannedEndHours <= job.plannedStartHours + 1e-9 ||
+      (other.status === "queued" && other.plannedStartHours < job.plannedStartHours - 1e-9)));
+  if (before.length) return `Queued after ${before.map(other => other.name).join(", ")}. Follow the current launches or update the plan.`;
   const free = trackerFreeWorkers(state);
   if (TYPE_ORDER.some(type => job.workers[type] > free[type])) return "Wait for the required workers to be released, or update the plan.";
   const pendingFarms = Object.values(state.farms).filter(farm => farm.status === "pending");
@@ -94,10 +119,18 @@ export function campaignStartProblem(state, name, now = Date.now()) {
 export function trackerActions(state, now = Date.now()) {
   const finished = dueMissions(state, now);
   const farms = dueFarms(state);
-  const ready = Object.values(state.missions).filter(job => !campaignStartProblem(state, job.name, now)).sort((a, b) => a.plannedStartHours - b.plannedStartHours || a.name.localeCompare(b.name));
+  const candidates = Object.values(state.missions).filter(job => !campaignStartProblem(state, job.name, now)).sort((a, b) => a.plannedStartHours - b.plannedStartHours || a.name.localeCompare(b.name));
+  // The entire displayed batch must be feasible, including restored old plans.
+  const preview = { ...state, missions: { ...state.missions } };
+  const ready = [];
+  for (const job of candidates) {
+    if (campaignStartProblem(preview, job.name, now)) continue;
+    ready.push(job);
+    preview.missions[job.name] = { ...job, status: "running", endsAt: now + job.durationMs };
+  }
   const running = Object.values(state.missions).filter(job => job.status === "running").sort((a, b) => a.endsAt - b.endsAt);
   const complete = CAMPAIGN_SECTIONS.every(key => state.completed[key] >= state.targets[key]) && !farms.length;
-  return { finished, farms, ready, running, complete };
+  return { finished, farms, ready, running, complete, surplusFarms: surplusFarmCrews(state) };
 }
 
 export function transitionTracker(state, action, now = Date.now()) {
@@ -127,6 +160,10 @@ export function transitionTracker(state, action, now = Date.now()) {
     const free = trackerFreeWorkers(state);
     if (TYPE_ORDER.some(type => farm.workers[type] > free[type])) throw new Error("Not enough released workers to staff this farm. Update the plan.");
     farm.status = "reserved";
+  } else if (action.type === "trim-farm") {
+    const adjustment = surplusFarmCrews(state).find(farm => farm.name === action.name);
+    if (!adjustment) throw new Error("This farm has no surplus crew to release.");
+    next.farms[action.name].workers = adjustment.workers;
   } else if (action.type === "notifications") {
     next.notificationsEnabled = Boolean(action.enabled);
   } else throw new Error("Unknown tracker action.");

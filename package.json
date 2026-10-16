@@ -1,6 +1,6 @@
 {
   "name": "cifi-zeus-mission-optimizer",
-  "version": "3.2.4",
+  "version": "3.2.5",
   "private": true,
   "type": "module",
   "scripts": {

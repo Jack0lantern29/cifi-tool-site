@@ -260,6 +260,38 @@ try {
   await click("Run Optimizer");
   await waitFor(`document.querySelector('#statusText').textContent==='Completed'`);
   assert.equal(await evaluate(`document.querySelector('#shortsOutput').classList.contains('hidden')`), true, "disabling the planner leaves farm-only optimisation");
+  // Restore the reported surplus farm and exercise its confirmation in the app.
+  const surplusSave = await evaluate(`(async () => {
+    const {createDefaultInput}=await import('./src/validation.js');
+    const {optimizeShorts}=await import('./src/shorts-optimizer.js');
+    const {createTracker,saveTracker}=await import('./src/shorts-tracker.js');
+    const {saveState}=await import('./src/state.js');
+    const input=createDefaultInput();
+    Object.assign(input,{ouroUnlocked:true,campaignEnabled:true,shortsEnabled:true,relic11Level:3});
+    [[6.5,11393],[13,6259],[22,3009],[41,1967]].forEach(([power,count],index)=>{input.workers[Object.keys(input.workers)[index]]={power,count};});
+    Object.assign(input.modifiers,{engineeringBadge:true,swarmLevel:40,productivityLevel:11,research58:6,research70:6,research80:2,relic3:40,ts07Enabled:true});
+    [[8,12],[8,12],[9,12],[0,8]].forEach(([completed,target],index)=>{input.shortsProgress['C'+(index+1)]={completed,target,active:null};});
+    input.selectedCampaignFarmMissions=['F1-1','F1-2','F1-3','F2-1','F2-2','F3-1'];
+    input.selectedFarmMissions=[...input.selectedCampaignFarmMissions];
+    const state=createTracker(await optimizeShorts(input),input);
+    state.farms['F1-3'].workers['Combat Corvette']=19;
+    state.farms['F1-3'].workers['Titan Hauler']=1;
+    saveState(input); saveTracker(state);
+    return {settings:localStorage.getItem('cifi-farm-mission-optimizer-state-v3'),tracker:localStorage.getItem('cifi-shorts-tracker-v1')};
+  })()`);
+  const surplusSeed = await send("Page.addScriptToEvaluateOnNewDocument", {source: `localStorage.setItem('cifi-farm-mission-optimizer-state-v3',${JSON.stringify(surplusSave.settings)}); localStorage.setItem('cifi-shorts-tracker-v1',${JSON.stringify(surplusSave.tracker)});`});
+  await send("Page.reload");
+  await waitFor(`document.querySelector('.tracker-actions')?.textContent.includes('Reduce F1-3 to 18 Combat Corvettes')`);
+  await send("Page.removeScriptToEvaluateOnNewDocument", {identifier:surplusSeed.identifier});
+  await click("Update remaining plan");
+  await waitFor(`Array.from(document.querySelectorAll('.tracker-actions button')).some(button=>button.textContent==='Confirm reduced crew'&&!button.disabled)`);
+  await click("Confirm reduced crew");
+  assert.equal(await evaluate(`JSON.parse(localStorage.getItem('cifi-shorts-tracker-v1')).farms['F1-3'].workers['Combat Corvette']`), 18, await evaluate(`document.querySelector('#shortsTracker').innerText`));
+  await click("Update remaining plan");
+  await waitFor(`Array.from(document.querySelectorAll('.tracker-actions button')).filter(button=>button.textContent==='Start mission'&&!button.disabled).length===4`);
+  assert.ok(await evaluate(`document.querySelector('.tracker-actions').textContent.includes('concurrently')`));
+  for (let launch=0; launch<4; launch++) await click("Start mission");
+  assert.equal(await evaluate(`Object.values(JSON.parse(localStorage.getItem('cifi-shorts-tracker-v1')).missions).filter(job=>job.status==='running').length`), 4);
   assert.deepEqual(exceptions, []);
   console.log("Browser checks passed: keyboard starts, manual completion, corrections, opt-in notifications, deduplication, refresh, live replan, failed/cancelled updates, reset, mobile, reduced motion, Campaign Planner and Ouroboros mode switching.");
 } finally {
