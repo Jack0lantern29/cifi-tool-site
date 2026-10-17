@@ -1,8 +1,8 @@
-import { ALL_CAMPAIGN_MISSIONS, ALL_FARM_MISSIONS, MISSION_DATA, TYPE_ORDER, farmUnlockCampaign } from "./data.js?v=3.2.5";
-import { CAMPAIGN_SECTIONS, calculateGlobalSpeedMultiplier, validateInput } from "./validation.js?v=3.2.5";
-import { SECTION_REQUIREMENTS } from "./campaign-unlocks.js?v=3.2.5";
-import { checkFarmReservationHorizon, createFarmReservations } from "./farm-reservations.js?v=3.2.5";
-import { canonicalStringify } from "./random.js?v=3.2.5";
+import { ALL_CAMPAIGN_MISSIONS, ALL_FARM_MISSIONS, MISSION_DATA, TYPE_ORDER, farmUnlockCampaign } from "./data.js?v=3.2.6";
+import { CAMPAIGN_SECTIONS, calculateGlobalSpeedMultiplier, validateInput } from "./validation.js?v=3.2.6";
+import { SECTION_REQUIREMENTS } from "./campaign-unlocks.js?v=3.2.6";
+import { checkFarmReservationHorizon, createFarmReservations } from "./farm-reservations.js?v=3.2.6";
+import { canonicalStringify } from "./random.js?v=3.2.6";
 
 export const TRACKER_STORAGE_KEY = "cifi-shorts-tracker-v1";
 const crew = value => Object.fromEntries(TYPE_ORDER.map(type => [type, value?.[type] || 0]));
@@ -16,10 +16,10 @@ const withinCap = (name, workers, cap = MISSION_DATA.find(row => row.name === na
 function missionFromJob(job, plannedAt) {
   return {
     name: job.name, section: job.section, workers: crew(job.workers), cap: job.cap,
-    durationMs: Math.ceil((job.endHours - job.startHours) * 3600000),
+    durationMs: Math.ceil(((job.finishHours ?? job.endHours) - job.startHours) * 3600000),
     plannedStartHours: job.startHours, plannedEndHours: job.endHours,
     status: job.alreadyRunning ? "running" : "queued", imported: Boolean(job.alreadyRunning),
-    startedAt: null, endsAt: job.alreadyRunning ? plannedAt + Math.ceil(job.endHours * 3600000) : null,
+    startedAt: null, endsAt: job.alreadyRunning ? plannedAt + Math.ceil((job.finishHours ?? job.endHours) * 3600000) : null,
     completedAt: null, notifiedFor: null
   };
 }
@@ -101,6 +101,7 @@ export function campaignStartProblem(state, name, now = Date.now()) {
   const required = SECTION_REQUIREMENTS[job.section];
   if (required && state.completed[required.section] < required.stage) return `Complete ${required.section}-${required.stage} first.`;
   if (dueFarms(state).length) return "Confirm the newly unlocked farm assignments first.";
+  if (state.input.awayEnabled && now < state.input.awayUntil && job.plannedStartHours > 0) return "Queued for your return. Turn off Away mode and update the plan if you are back early.";
   // Follow event order, not elapsed wall time: a delayed or unconfirmed launch
   // must not make crews from a later step appear available ahead of schedule.
   const before = Object.values(state.missions).filter(other => other.name !== name && other.status !== "completed" &&
@@ -111,8 +112,9 @@ export function campaignStartProblem(state, name, now = Date.now()) {
   if (TYPE_ORDER.some(type => job.workers[type] > free[type])) return "Wait for the required workers to be released, or update the plan.";
   const pendingFarms = Object.values(state.farms).filter(farm => farm.status === "pending");
   const reservations = createFarmReservations(farmRows(pendingFarms));
-  const running = Object.values(state.missions).filter(item => item.status === "running").map(item => ({ ...item, endHours: (item.endsAt - now) / 3600000 }));
-  if (!checkFarmReservationHorizon(free, running, { ...job, endHours: job.durationMs / 3600000 }, reservations).feasible) return "These workers will be needed by an upcoming farm unlock. Update the plan or wait.";
+  const returnHours = state.input.awayEnabled ? Math.max(0, (state.input.awayUntil - now) / 3600000) : 0;
+  const running = Object.values(state.missions).filter(item => item.status === "running").map(item => ({ ...item, endHours: Math.max(returnHours, (item.endsAt - now) / 3600000) }));
+  if (!checkFarmReservationHorizon(free, running, { ...job, endHours: Math.max(returnHours, job.durationMs / 3600000) }, reservations).feasible) return "These workers will be needed by an upcoming farm unlock. Update the plan or wait.";
   return null;
 }
 
@@ -221,7 +223,7 @@ export function validateTracker(state) {
   const plan = state.result?.shortsPlan;
   if (plan?.status !== "best-found" || !Number.isFinite(plan.totalHours) || !Array.isArray(plan.jobs) || !Array.isArray(plan.steps) || !Array.isArray(plan.farmEvents) || !Array.isArray(state.result.assignments) || !Array.isArray(state.result.notices) || !Array.isArray(state.result.selectedFarmNames) || !state.result.totals || !state.result.unassignedWorkers || !plan.certificate || !Array.isArray(plan.unresolved)) throw new Error("Invalid saved plan.");
   if (plan.jobs.length > 48 || plan.steps.length > 49 || Object.keys(state.missions || {}).length > 48 || Object.keys(state.farms || {}).length > 16) throw new Error("Invalid tracker size.");
-  const validJob = job => job && ALL_CAMPAIGN_MISSIONS.includes(job.name) && job.section === section(job.name) && withinCap(job.name, job.workers, job.cap) && Number.isFinite(job.startHours) && Number.isFinite(job.endHours) && job.startHours >= 0 && job.endHours > job.startHours;
+  const validJob = job => job && ALL_CAMPAIGN_MISSIONS.includes(job.name) && job.section === section(job.name) && withinCap(job.name, job.workers, job.cap) && Number.isFinite(job.startHours) && Number.isFinite(job.endHours) && job.startHours >= 0 && job.endHours > job.startHours && (job.finishHours == null || (Number.isFinite(job.finishHours) && job.finishHours > job.startHours && job.finishHours <= job.endHours));
   const validFarm = farm => farm && ALL_FARM_MISSIONS.includes(farm.name) && withinCap(farm.name, farm.workers) && farm.unlockCampaign === farmUnlockCampaign(farm.name);
   if (!plan.jobs.every(validJob) || !plan.farmEvents.every(validFarm) || !state.result.notices.every(text => typeof text === "string") || !state.result.selectedFarmNames.every(name => ALL_FARM_MISSIONS.includes(name)) || !plan.unresolved.every(name => ALL_CAMPAIGN_MISSIONS.includes(name))) throw new Error("Invalid plan contents.");
   if (!state.result.assignments.every(row => row && [...ALL_CAMPAIGN_MISSIONS, ...ALL_FARM_MISSIONS].includes(row.name) && TYPE_ORDER.includes(row.type) && Number.isSafeInteger(row.count) && row.count > 0)) throw new Error("Invalid saved allocation.");

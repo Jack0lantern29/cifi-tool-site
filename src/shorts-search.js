@@ -1,6 +1,7 @@
-import { TYPE_ORDER } from "./data.js?v=3.2.5";
-import { checkFarmReservationHorizon, reserveUnlockedFarms } from "./farm-reservations.js?v=3.2.5";
-import { isCampaignReady } from "./campaign-unlocks.js?v=3.2.5";
+import { TYPE_ORDER } from "./data.js?v=3.2.6";
+import { checkFarmReservationHorizon, reserveUnlockedFarms } from "./farm-reservations.js?v=3.2.6";
+import { isCampaignReady } from "./campaign-unlocks.js?v=3.2.6";
+import { campaignTiming } from "./away-mode.js?v=3.2.6";
 
 const MIN_HOURS = 2 / 3600;
 const counts = source => Object.fromEntries(TYPE_ORDER.map(type => [type, source?.[type] || 0]));
@@ -107,7 +108,7 @@ export function shortsLowerBound(chains, available, workers, running = [], time 
 }
 
 // Reschedule a set of fixed crews at completion events, preserving locked crews.
-function scheduleCrews(chains, initialJobs, available, workers, crews, priorities, farmReservations) {
+function scheduleCrews(chains, initialJobs, available, workers, crews, priorities, farmReservations, awayHours = 0) {
   const free = counts(available);
   const next = chains.map((_, chain) => initialJobs.some(job => job.chain === chain) ? 1 : 0);
   let running = [...initialJobs];
@@ -123,9 +124,9 @@ function scheduleCrews(chains, initialJobs, available, workers, crews, prioritie
       if (!crew || TYPE_ORDER.some(type => crew[type] > free[type])) continue;
       const power = powerOf(crew, workers);
       if (!(power > 0) || sum(Object.values(crew)) > job.cap) return null;
-      const endHours = time + Math.max(MIN_HOURS, job.work / power);
+      const { finishHours, endHours } = campaignTiming(time, Math.max(MIN_HOURS, job.work / power), awayHours);
       if (!Number.isFinite(endHours) || endHours <= time) return null;
-      const launched = { ...job, workers: crew, startHours: time, endHours, alreadyRunning: false };
+      const launched = { ...job, workers: crew, startHours: time, finishHours, endHours, alreadyRunning: false };
       if (!checkFarmReservationHorizon(free, running, launched, farmReservations).feasible) continue;
       TYPE_ORDER.forEach(type => { free[type] -= crew[type]; });
       jobs.push(launched);
@@ -144,7 +145,7 @@ function scheduleCrews(chains, initialJobs, available, workers, crews, prioritie
 // Refine actual integer crews, not just dispatch priorities. Transfers, swaps,
 // and small changes can balance competing sections far more finely than a few
 // fixed percentage splits. Every candidate is rescheduled and checked for locks.
-export function refineShorts(chains, initialJobs, available, workers, incumbent, random, onProgress = () => {}, iterations = 2400, farmReservations = {}) {
+export function refineShorts(chains, initialJobs, available, workers, incumbent, random, onProgress = () => {}, iterations = 2400, farmReservations = {}, awayHours = 0) {
   if (!Number.isFinite(incumbent.totalHours)) return { ...incumbent, trials: 0 };
   let best = incumbent;
   let current = best;
@@ -184,7 +185,7 @@ export function refineShorts(chains, initialJobs, available, workers, incumbent,
       priorities[a.name] = priorities[b.name];
     }
     if (pending.some(job => sum(Object.values(crews[job.name])) > job.cap || powerOf(crews[job.name], workers) <= 0 || TYPE_ORDER.some(key => crews[job.name][key] > available[key]))) continue;
-    const candidate = scheduleCrews(chains, initialJobs, available, workers, crews, priorities, farmReservations);
+    const candidate = scheduleCrews(chains, initialJobs, available, workers, crews, priorities, farmReservations, awayHours);
     if (!candidate) continue;
     const secondary = sum(candidate.jobs.map(job => job.endHours));
     if (candidate.totalHours < best.totalHours || (candidate.totalHours === best.totalHours && secondary < sum(best.jobs.map(job => job.endHours)))) best = candidate;
@@ -203,7 +204,7 @@ export function refineShorts(chains, initialJobs, available, workers, incumbent,
 // This avoids locking all strong workers into one early mission and starving
 // another section. Farm crews are set aside even before their future unlocks;
 // this is only a candidate construction, never an extra constraint on the plan.
-export function balancedShorts(chains, initialJobs, available, workers, incumbent, farmReservations = {}) {
+export function balancedShorts(chains, initialJobs, available, workers, incumbent, farmReservations = {}, awayHours = 0) {
   const pending = chains.map(chain => chain.filter(job => !initialJobs.some(active => active.name === job.name)));
   const work = pending.map(chain => sum(chain.map(job => job.work)));
   const indices = work.map((value, index) => value > 0 ? index : -1).filter(index => index >= 0);
@@ -239,7 +240,7 @@ export function balancedShorts(chains, initialJobs, available, workers, incumben
         }
       }
       trials++;
-      const candidate = scheduleCrews(chains, initialJobs, available, workers, crews, priorities, farmReservations);
+      const candidate = scheduleCrews(chains, initialJobs, available, workers, crews, priorities, farmReservations, awayHours);
       if (candidate && candidate.totalHours < best.totalHours) best = candidate;
       if (!candidate) break;
       const finishes = indices.map(index => candidate.jobs.find(job => job.name === pending[index].at(-1).name).endHours);
@@ -255,7 +256,7 @@ export function balancedShorts(chains, initialJobs, available, workers, incumben
 // Systematically improve the best schedule during the normal run. Coarse-to-
 // fine crew changes locate useful regions, then single-worker moves polish
 // the finish. Every proposal is rescheduled with locked crews and farm checks.
-export function polishShorts(chains, initialJobs, available, workers, incumbent, onProgress = () => {}, budget = 6000, farmReservations = {}) {
+export function polishShorts(chains, initialJobs, available, workers, incumbent, onProgress = () => {}, budget = 6000, farmReservations = {}, awayHours = 0) {
   if (!Number.isFinite(incumbent.totalHours)) return { ...incumbent, trials: 0 };
   const fixed = new Set(initialJobs.map(job => job.name));
   const pending = chains.flat().filter(job => !fixed.has(job.name));
@@ -281,7 +282,7 @@ export function polishShorts(chains, initialJobs, available, workers, incumbent,
     }
     trials++;
     if (trials % 128 === 0) onProgress({ phase: "shorts-polishing", determinate: true, completed: trials, total: budget });
-    const candidate = scheduleCrews(chains, initialJobs, available, workers, proposal, priorities, farmReservations);
+    const candidate = scheduleCrews(chains, initialJobs, available, workers, proposal, priorities, farmReservations, awayHours);
     if (!candidate) return;
     const secondary = sum(candidate.jobs.map(job => job.endHours));
     if (candidate.totalHours < best.totalHours || (candidate.totalHours === best.totalHours && secondary < score)) {
@@ -324,7 +325,7 @@ export function polishShorts(chains, initialJobs, available, workers, incumbent,
 // Exhaustive event-based branch-and-bound for small crews. Every nonempty
 // integer crew and every subset of ready chains is considered, including waiting.
 // If the node budget is exhausted, no optimality claim is made.
-export function exactShorts(chains, initialJobs, available, workers, incumbent, nodeLimit = 100000, farmReservations = {}) {
+export function exactShorts(chains, initialJobs, available, workers, incumbent, nodeLimit = 100000, farmReservations = {}, awayHours = 0) {
   const positive = TYPE_ORDER.filter(type => available[type] > 0 && workers[type].power > 0);
   const pendingCount = chains.flat().length - initialJobs.length;
   if (sum(positive.map(type => available[type])) > 6 || pendingCount > 8 || !Number.isFinite(incumbent.totalHours)) return { ...incumbent, exhausted: false, nodes: 0 };
@@ -356,9 +357,9 @@ export function exactShorts(chains, initialJobs, available, workers, incumbent, 
         if (!exhausted) return;
         if (typeIndex === positive.length) {
           if (!(power > 0)) return;
-          const endHours = time + Math.max(MIN_HOURS, job.work / power);
+          const { finishHours, endHours } = campaignTiming(time, Math.max(MIN_HOURS, job.work / power), awayHours);
           if (endHours >= best.totalHours) return;
-          const launched = { ...job, workers: { ...crew }, startHours: time, endHours, alreadyRunning: false };
+          const launched = { ...job, workers: { ...crew }, startHours: time, finishHours, endHours, alreadyRunning: false };
           const remaining = counts(reserved);
           TYPE_ORDER.forEach(type => { remaining[type] -= crew[type]; });
           const following = [...advanced]; following[job.chain]++;

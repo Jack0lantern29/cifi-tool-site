@@ -1,10 +1,10 @@
-import { CAMPAIGN_SECTIONS } from "./validation.js?v=3.2.5";
-import { TYPE_ORDER } from "./data.js?v=3.2.5";
-import { SECTION_REQUIREMENTS } from "./campaign-unlocks.js?v=3.2.5";
-import { campaignStartProblem, trackerActions, trackerFreeWorkers } from "./shorts-tracker.js?v=3.2.5";
-import { formatDuration } from "./progress.js?v=3.2.5";
-import { formatLocalETA } from "./eta.js?v=3.2.5";
-import { DURATION_PATTERN, parseRemainingTime, formatRemainingTime } from "./duration-input.js?v=3.2.5";
+import { CAMPAIGN_SECTIONS } from "./validation.js?v=3.2.6";
+import { TYPE_ORDER } from "./data.js?v=3.2.6";
+import { SECTION_REQUIREMENTS } from "./campaign-unlocks.js?v=3.2.6";
+import { campaignStartProblem, trackerActions, trackerFreeWorkers } from "./shorts-tracker.js?v=3.2.6";
+import { formatDuration } from "./progress.js?v=3.2.6";
+import { formatLocalETA } from "./eta.js?v=3.2.6";
+import { DURATION_PATTERN, parseRemainingTime, formatRemainingTime } from "./duration-input.js?v=3.2.6";
 
 const node = (tag, className = "", text = "") => {
   const element = document.createElement(tag);
@@ -39,6 +39,7 @@ export function createTrackerView(root, callbacks) {
   const notice = node("p", "tracker-notice");
   notice.setAttribute("role", "status");
   const notificationHelp = node("p", "tiny-note tracker-notification-help");
+  const awayHelp = node("p", "tiny-note tracker-away-help");
   const next = node("section", "tracker-next");
   const nextTitle = node("h4", "", "Available actions now");
   const actionList = node("div", "tracker-actions");
@@ -46,7 +47,7 @@ export function createTrackerView(root, callbacks) {
   const grid = node("div", "tracker-grid");
   const detail = node("div", "tracker-detail");
   detail.setAttribute("role", "status");
-  root.replaceChildren(header, intro, controls, notice, notificationHelp, next, grid, detail);
+  root.replaceChildren(header, intro, controls, notice, notificationHelp, awayHelp, next, grid, detail);
 
   function showMilestone(name) {
     selected = name;
@@ -57,7 +58,7 @@ export function createTrackerView(root, callbacks) {
     else {
       const status = completed ? "✓ Confirmed complete" : job.status === "running" ? (job.endsAt <= Date.now() ? "Ready to confirm" : "Running") : "Queued";
       detail.append(node("p", "", `${status} · ${workersText(job.workers)}`));
-      if (job.status === "queued") detail.append(node("p", "tiny-note", `Estimated duration: ${formatDuration(job.durationMs)}. Planned finish: ${formatLocalETA(state.plannedAt, job.plannedEndHours)} (estimate).`));
+      if (job.status === "queued") detail.append(node("p", "tiny-note", `Estimated duration: ${formatDuration(job.durationMs)}. Planned finish: ${formatLocalETA(state.plannedAt, job.plannedStartHours + job.durationMs / 3600000)} (estimate).`));
       else if (job.status === "running") detail.append(node("p", "tiny-note", `ETA: ${formatLocalETA(job.endsAt, 0)}`));
     }
     detail.hidden = false;
@@ -162,6 +163,10 @@ export function createTrackerView(root, callbacks) {
 
   function tick(now = Date.now()) {
     if (!state) return;
+    awayHelp.hidden = !state.input.awayEnabled;
+    awayHelp.textContent = state.input.awayUntil > now
+      ? `Away mode: back at ${formatLocalETA(state.input.awayUntil, 0)}. Launch the current batch before leaving. Later launches are planned for your return; timers still show actual mission finishes.`
+      : "Your away period has ended. Confirm any finished missions, then update the remaining plan. Set a new return time for your next absence.";
     let confirmed = 0;
     let total = 0;
     lanes.forEach(lane => {
@@ -183,7 +188,7 @@ export function createTrackerView(root, callbacks) {
       else progress.setAttribute("aria-valuenow", String(Math.round(value)));
       progress.setAttribute("aria-valuetext", active ? `${status.textContent}, ${remaining(active, now)} remaining${active.imported ? ", original duration unknown" : ""}` : status.textContent);
       timer.textContent = active ? due ? "Check the game, then confirm completion" : `${remaining(active, now)} remaining${value == null ? " · countdown only" : ` · ${value.toFixed(2)}%`}` : locked ? `Complete ${required.section}-${required.stage} to unlock` : done ? "" : (queued ? campaignStartProblem(state, queued.name, now) || "Ready to launch in-game" : "Update the plan to continue");
-      eta.textContent = active ? `ETA: ${formatLocalETA(active.endsAt, 0)}` : queued ? `Planned finish: ${formatLocalETA(state.plannedAt, queued.plannedEndHours)} (estimate)` : "";
+      eta.textContent = active ? `ETA: ${formatLocalETA(active.endsAt, 0)}` : queued ? `Planned finish: ${formatLocalETA(state.plannedAt, queued.plannedStartHours + queued.durationMs / 3600000)} (estimate)` : "";
       for (const item of milestones.children) {
         const name = item.dataset.milestone;
         const complete = Number(name.split("-")[1]) <= state.completed[key];
@@ -202,7 +207,7 @@ export function createTrackerView(root, callbacks) {
     options = nextOptions;
     root.hidden = !state && !options.previewAvailable;
     controls.replaceChildren();
-    next.hidden = grid.hidden = detail.hidden = !state;
+    next.hidden = grid.hidden = detail.hidden = awayHelp.hidden = !state;
     intro.hidden = Boolean(state);
     notice.hidden = !state;
     notificationHelp.hidden = !state;

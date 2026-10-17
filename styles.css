@@ -363,6 +363,7 @@ body {
 }
 
 input[type="number"],
+input[type="datetime-local"],
 .time-remaining-input,
 select {
   width: 100%;
@@ -377,6 +378,7 @@ select {
 }
 
 input[type="number"]:focus,
+input[type="datetime-local"]:focus,
 .time-remaining-input:focus,
 select:focus {
   border-color: rgba(245, 184, 31, 0.72);
@@ -1083,4 +1085,55 @@ select:focus-visible,
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
   }
+}
+.away-controls {
+  margin: 1rem 18px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  text-align: left;
+}
+.away-controls .away-intro {
+  margin-top: 8px;
+  line-height: 1.6;
+}
+.away-details {
+  display: grid;
+  grid-template-columns: minmax(0, 22rem) minmax(0, 1fr);
+  gap: 24px;
+  margin-top: 24px;
+}
+.away-details .tiny-note {
+  max-width: 38ch;
+  line-height: 1.6;
+}
+.away-instructions h4 {
+  margin: 0 0 10px;
+  color: #d9e6ff;
+  font-size: .98rem;
+  font-weight: 700;
+}
+.away-instructions ul {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: .85rem;
+  line-height: 1.65;
+}
+.away-instructions li + li { margin-top: 6px; }
+.away-controls .away-footnote {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  line-height: 1.6;
+}
+.away-controls input[type="datetime-local"] {
+  width: 100%;
+  max-width: 22rem;
+  box-sizing: border-box;
+  color-scheme: dark;
+}
+@media (max-width: 640px) {
+  .away-details { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  .away-controls { padding: 16px; }
 }

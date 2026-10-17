@@ -1,12 +1,13 @@
-import { MISSION_DATA, TYPE_ORDER } from "./data.js?v=3.2.5";
-import { CAMPAIGN_SECTIONS, calculateGlobalSpeedMultiplier, getVisibleFarmNames, validateInput } from "./validation.js?v=3.2.5";
-import { optimize, OptimizerValidationError } from "./optimizer.js?v=3.2.5";
-import { optimizeCrazy } from "./crazy-optimizer.js?v=3.2.5";
-import { createSeededRandom, deriveSeed, formatRunId } from "./random.js?v=3.2.5";
-import { exactShorts, refineShorts, balancedShorts, polishShorts, shortsLowerBound } from "./shorts-search.js?v=3.2.5";
-import { checkFarmReservationHorizon, createFarmReservations, farmEventsForJobs, reserveUnlockedFarms } from "./farm-reservations.js?v=3.2.5";
-import { campaignPrerequisite, includeCampaignPrerequisites, isCampaignReady } from "./campaign-unlocks.js?v=3.2.5";
-import { mergeTrackedFarms, reserveTrackedFarms } from "./tracked-farms.js?v=3.2.5";
+import { MISSION_DATA, TYPE_ORDER } from "./data.js?v=3.2.6";
+import { CAMPAIGN_SECTIONS, calculateGlobalSpeedMultiplier, getVisibleFarmNames, validateInput } from "./validation.js?v=3.2.6";
+import { optimize, OptimizerValidationError } from "./optimizer.js?v=3.2.6";
+import { optimizeCrazy } from "./crazy-optimizer.js?v=3.2.6";
+import { createSeededRandom, deriveSeed, formatRunId } from "./random.js?v=3.2.6";
+import { exactShorts, refineShorts, balancedShorts, polishShorts, shortsLowerBound } from "./shorts-search.js?v=3.2.6";
+import { checkFarmReservationHorizon, createFarmReservations, farmEventsForJobs, reserveUnlockedFarms } from "./farm-reservations.js?v=3.2.6";
+import { campaignPrerequisite, includeCampaignPrerequisites, isCampaignReady } from "./campaign-unlocks.js?v=3.2.6";
+import { mergeTrackedFarms, reserveTrackedFarms } from "./tracked-farms.js?v=3.2.6";
+import { awayHoursRemaining, campaignTiming } from "./away-mode.js?v=3.2.6";
 
 const MIN_HOURS = 2 / 3600;
 const MISSIONS = new Map(MISSION_DATA.map(mission => [mission.name, mission]));
@@ -19,8 +20,9 @@ function permutations(values) {
 
 // Workers stay committed until completion. Newly unlocked farms take priority
 // over subsequent launches and keep their assigned crews for the rest of the plan.
-export function planShorts(input, availableWorkers, onProgress = () => {}, farmReservations = {}) {
+export function planShorts(input, availableWorkers, onProgress = () => {}, farmReservations = {}, plannedAt = Date.now()) {
   input = { ...input, shortsProgress: includeCampaignPrerequisites(input.shortsProgress) };
+  const awayHours = awayHoursRemaining(input, plannedAt);
   const speed = calculateGlobalSpeedMultiplier(input);
   const capMultiplier = input.ouroUnlocked ? 1 + input.relic11Level * 0.5 : 1;
   const types = [...TYPE_ORDER].sort((a, b) => input.workers[b].power - input.workers[a].power);
@@ -38,7 +40,7 @@ export function planShorts(input, availableWorkers, onProgress = () => {}, farmR
     const active = input.shortsProgress[section].active;
     if (!active) return;
     const workers = counts(active.workers);
-    initialJobs.push({ ...chains[chain][0], chain, workers, startHours: 0, endHours: active.remainingHours, alreadyRunning: true });
+    initialJobs.push({ ...chains[chain][0], chain, workers, startHours: 0, ...campaignTiming(0, active.remainingHours, awayHours), alreadyRunning: true });
     TYPE_ORDER.forEach(type => { initialFree[type] -= workers[type]; });
   });
 
@@ -62,7 +64,8 @@ export function planShorts(input, availableWorkers, onProgress = () => {}, farmR
   // Each chromosome sets a section priority and a power-sharing policy at each event.
   // Full allocations, balanced chains, short-first and mutations compete by final ETA.
   const orders = permutations([0, 1, 2, 3]);
-  const policyCount = 14;
+  const sharePolicies = awayHours > 0 ? 9 : 7;
+  const policyCount = sharePolicies * 2;
   function simulate(genes) {
     const free = counts(initialFree);
     const next = chains.map((_, index) => initialJobs.some(job => job.chain === index) ? 1 : 0);
@@ -72,8 +75,8 @@ export function planShorts(input, availableWorkers, onProgress = () => {}, farmR
     let event = 0;
     while (next.some((index, chain) => index < chains[chain].length) || running.length) {
       const gene = genes[event] ?? genes[0];
-      const policy = gene % policyCount % 7;
-      const allowWaiting = gene % policyCount >= 7;
+      const policy = gene % policyCount % sharePolicies;
+      const allowWaiting = gene % policyCount >= sharePolicies;
       let ready = orders[Math.floor(gene / policyCount)].filter(chain => next[chain] < chains[chain].length && !running.some(job => job.chain === chain) && isCampaignReady(chains[chain][next[chain]], jobs, time));
       const remainingWork = chain => chains[chain].slice(next[chain]).reduce((sum, job) => sum + job.work, 0);
       if (policy === 5) ready.sort((a, b) => remainingWork(b) - remainingWork(a));
@@ -87,11 +90,15 @@ export function planShorts(input, availableWorkers, onProgress = () => {}, farmR
         if (policy === 3) share = 0.5;
         if (policy === 4) share = 0.75;
         if (ready.length === 1) share = 1;
+        // Include crews sized to finish at return, and splits proportional to
+        // the immediately available missions, alongside the normal policies.
+        if (time === 0 && awayHours > 0 && policy === 7) share = Math.min(1, job.work / awayHours / powerOf(free));
+        if (time === 0 && policy === 8) share = job.work / ready.reduce((sum, index) => sum + chains[index][next[index]].work, 0);
         let allocation = allocate(free, job, share);
         const limits = { ...free };
         // Tighten a crew if it would occupy workers needed by an earlier unlock.
         for (let attempt = 0; allocation.power > 0 && attempt < 16; attempt++) {
-          const candidate = { ...job, workers: allocation.workers, endHours: time + Math.max(MIN_HOURS, job.work / allocation.power) };
+          const candidate = { ...job, workers: allocation.workers, ...campaignTiming(time, Math.max(MIN_HOURS, job.work / allocation.power), awayHours) };
           const horizon = checkFarmReservationHorizon(free, running, candidate, farmReservations);
           if (horizon.feasible) break;
           if (horizon.timeHours >= candidate.endHours || attempt === 15) { allocation = { power: 0 }; break; }
@@ -114,9 +121,9 @@ export function planShorts(input, availableWorkers, onProgress = () => {}, farmR
               continue;
             }
           }
-          const endHours = time + duration;
+          const { finishHours, endHours } = campaignTiming(time, duration, awayHours);
           if (!Number.isFinite(endHours) || endHours <= time) return { jobs, totalHours: Infinity, genes };
-          const launched = { ...job, chain, workers: allocation.workers, startHours: time, endHours, alreadyRunning: false };
+          const launched = { ...job, chain, workers: allocation.workers, startHours: time, finishHours, endHours, alreadyRunning: false };
           TYPE_ORDER.forEach(type => { free[type] -= allocation.workers[type]; });
           jobs.push(launched);
           running.push(launched);
@@ -135,7 +142,7 @@ export function planShorts(input, availableWorkers, onProgress = () => {}, farmR
     return { jobs, totalHours: time, genes };
   }
 
-  const seed = deriveSeed({ progress: input.shortsProgress, workers: input.workers, availableWorkers, speed, capMultiplier });
+  const seed = deriveSeed({ progress: input.shortsProgress, workers: input.workers, availableWorkers, speed, capMultiplier, ...(awayHours > 0 ? { awayHours } : {}) });
   const random = createSeededRandom(seed);
   let best = null;
   const total = orders.length * policyCount + 320;
@@ -154,13 +161,13 @@ export function planShorts(input, availableWorkers, onProgress = () => {}, farmR
     if (trial % 16 === 0) onProgress({ phase: "shorts-planning", determinate: true, completed: trial, total });
   }
   const baselineHours = best.totalHours;
-  const refined = refineShorts(chains, initialJobs, availableWorkers, input.workers, best, random, onProgress, input.searchEffort === "crazy" ? 8000 : 2400, farmReservations);
-  const balanced = balancedShorts(chains, initialJobs, availableWorkers, input.workers, refined, farmReservations);
+  const refined = refineShorts(chains, initialJobs, availableWorkers, input.workers, best, random, onProgress, input.searchEffort === "crazy" ? 8000 : 2400, farmReservations, awayHours);
+  const balanced = balancedShorts(chains, initialJobs, availableWorkers, input.workers, refined, farmReservations, awayHours);
   const rebalanced = balanced.totalHours < refined.totalHours
-    ? refineShorts(chains, initialJobs, availableWorkers, input.workers, balanced, random, onProgress, input.searchEffort === "crazy" ? 8000 : 2400, farmReservations)
+    ? refineShorts(chains, initialJobs, availableWorkers, input.workers, balanced, random, onProgress, input.searchEffort === "crazy" ? 8000 : 2400, farmReservations, awayHours)
     : { ...refined, trials: 0 };
-  const polished = polishShorts(chains, initialJobs, availableWorkers, input.workers, rebalanced, onProgress, input.searchEffort === "crazy" ? 12000 : 6000, farmReservations);
-  const exact = exactShorts(chains, initialJobs, availableWorkers, input.workers, polished, 100000, farmReservations);
+  const polished = polishShorts(chains, initialJobs, availableWorkers, input.workers, rebalanced, onProgress, input.searchEffort === "crazy" ? 12000 : 6000, farmReservations, awayHours);
+  const exact = exactShorts(chains, initialJobs, availableWorkers, input.workers, polished, 100000, farmReservations, awayHours);
   best = exact;
   const next = chains.map((_, chain) => initialJobs.some(job => job.chain === chain) ? 1 : 0);
   let lowerBoundHours = shortsLowerBound(chains, availableWorkers, input.workers, initialJobs, 0, next, farmReservations);
@@ -186,12 +193,12 @@ export function planShorts(input, availableWorkers, onProgress = () => {}, farmR
     running: jobs.filter(job => job.startHours <= timeHours && job.endHours > timeHours)
   }));
   const unresolved = chains.flat().filter(job => !jobs.some(scheduled => scheduled.name === job.name)).map(job => job.name);
-  return { jobs, steps, farmEvents, farmBlockedAt: best.farmBlockedAt ?? null, totalHours: best.totalHours, baselineHours, certificate, unresolved, availableWorkers: counts(availableWorkers), searched: total + refined.trials + balanced.trials + rebalanced.trials + polished.trials, status: Number.isFinite(best.totalHours) ? "best-found" : "blocked" };
+  return { jobs, steps, farmEvents, awayHours, farmBlockedAt: best.farmBlockedAt ?? null, totalHours: best.totalHours, baselineHours, certificate, unresolved, availableWorkers: counts(availableWorkers), searched: total + refined.trials + balanced.trials + rebalanced.trials + polished.trials, status: Number.isFinite(best.totalHours) ? "best-found" : "blocked" };
 }
 
-function finishShorts(input, farmResult, locked, onProgress, futureFarms = { assignments: [], selectedFarmNames: [] }, prerequisiteTargets = []) {
+function finishShorts(input, farmResult, locked, onProgress, futureFarms = { assignments: [], selectedFarmNames: [] }, prerequisiteTargets = [], plannedAt = Date.now()) {
   const available = Object.fromEntries(TYPE_ORDER.map(type => [type, farmResult.unassignedWorkers[type] + locked[type]]));
-  const shortsPlan = planShorts(input, available, onProgress, createFarmReservations(futureFarms.assignments));
+  const shortsPlan = planShorts(input, available, onProgress, createFarmReservations(futureFarms.assignments), plannedAt);
   shortsPlan.futureFarmNames = futureFarms.selectedFarmNames;
   shortsPlan.unstaffedFarmNames = futureFarms.selectedFarmNames.filter(name => !futureFarms.assignments.some(assignment => assignment.name === name && assignment.count > 0));
   if (shortsPlan.unstaffedFarmNames.length) {
@@ -220,6 +227,7 @@ function finishShorts(input, farmResult, locked, onProgress, futureFarms = { ass
 }
 
 export async function optimizeShorts(rawInput, options = {}) {
+  options = { plannedAt: Date.now(), ...options };
   const { input, errors } = validateInput(rawInput);
   if (errors.length) throw new OptimizerValidationError(errors);
   if (options.reservedFarms?.length) {
@@ -259,7 +267,7 @@ export async function optimizeShorts(rawInput, options = {}) {
       // Keep a complete route available if Overkill is cancelled while farming.
       if (!checkpoint && options.onCheckpoint) {
         const future = futureNames.length ? optimize(futureInput(result)) : undefined;
-        options.onCheckpoint(finishShorts(input, result, locked, undefined, future, prerequisiteTargets));
+        options.onCheckpoint(finishShorts(input, result, locked, undefined, future, prerequisiteTargets, options.plannedAt));
       }
       checkpoint = result;
     }
@@ -283,7 +291,7 @@ export async function optimizeShorts(rawInput, options = {}) {
       farmResult.notices.push(`Future farm search stopped early: ${error.message}`);
     }
   }
-  const result = finishShorts(input, farmResult, locked, options.onProgress, futureFarms, prerequisiteTargets);
+  const result = finishShorts(input, farmResult, locked, options.onProgress, futureFarms, prerequisiteTargets, options.plannedAt);
   options.onCheckpoint?.(result);
   options.onProgress?.({ phase: "complete", determinate: true, completed: 1, total: 1 });
   return result;

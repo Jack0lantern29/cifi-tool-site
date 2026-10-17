@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=3.2.5" />
+  <link rel="stylesheet" href="styles.css?v=3.2.6" />
 </head>
 <body>
   <noscript><div class="noscript-notice">JavaScript is required to run the mission optimizer.</div></noscript>
@@ -272,6 +272,27 @@
         </div>
 
         <div id="shortsControls" class="campaign-enabled-only hidden">
+          <div class="away-controls">
+            <label class="checkbox-row"><input id="awayEnabled" type="checkbox"> Away mode</label>
+            <p class="tiny-note away-intro">Plan concurrent campaigns around your time away.</p>
+            <div id="awayFields" hidden>
+              <div class="away-details">
+                <div>
+                  <label class="field-label" for="awayUntil">Return time</label>
+                  <input id="awayUntil" type="datetime-local" aria-describedby="awayTimeHelp">
+                  <p id="awayTimeHelp" class="tiny-note">Your local time. Choose tomorrow’s date for an overnight plan.</p>
+                </div>
+                <div class="away-instructions">
+                  <h4>Before you leave</h4>
+                  <ul>
+                    <li>Launch the suggested missions.</li>
+                    <li>Recalculate if your return time changes.</li>
+                  </ul>
+                </div>
+              </div>
+              <p class="tiny-note away-footnote">The plan waits until your return to collect missions and reassign workers. Farm crews stay assigned.</p>
+            </div>
+          </div>
           <p class="tiny-note shorts-help">Choose the last mission you have finished in each section, then the mission you want to finish through. For example, last finished C1-8 and target C1-12 plans C1-9 through C1-12. Select “None completed” to begin at mission 1.</p>
           <div id="shortsProgressGrid" class="shorts-progress-grid"></div>
           <p class="tiny-note shorts-help">Already running a mission? Keep “Last mission finished” on the previous mission and enter the running mission’s remaining time and assigned crew. Personnel counts above include that crew. Sections can run concurrently; the planner shares workers to minimise the time to finish all targets. Editing progress stops live tracking.</p>
@@ -511,6 +532,6 @@
     </section>
   </main>
 
-  <script type="module" src="script.js?v=3.2.5"></script>
+  <script type="module" src="script.js?v=3.2.6"></script>
 </body>
 </html>

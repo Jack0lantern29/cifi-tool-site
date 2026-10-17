@@ -9,8 +9,8 @@ import {
   OURO_OFF_VISIBLE_FARMS,
   OURO_REQUIRED_MODE_OPTIONS,
   TYPE_ORDER
-} from "./data.js?v=3.2.5";
-import { SECTION_REQUIREMENTS } from "./campaign-unlocks.js?v=3.2.5";
+} from "./data.js?v=3.2.6";
+import { SECTION_REQUIREMENTS } from "./campaign-unlocks.js?v=3.2.6";
 
 const DEFAULT_MODE = "Maximising Resources";
 const DEFAULT_CAMPAIGN = "C4-11";
@@ -32,6 +32,8 @@ export function createDefaultInput() {
     campaignEnabled: false,
     campaignTargetName: DEFAULT_CAMPAIGN,
     shortsEnabled: false,
+    awayEnabled: false,
+    awayUntil: 0,
     shortsProgress: Object.fromEntries(CAMPAIGN_SECTIONS.map(section => [section, { completed: 0, target: 0, active: null }])),
     relic11Level: 0,
     modifiers: {
@@ -157,6 +159,11 @@ export function validateInput(raw) {
   );
 
   const shortsEnabled = Boolean(source.shortsEnabled);
+  const awayEnabled = Boolean(source.awayEnabled);
+  const awayUntil = parseNumber(source.awayUntil);
+  if (awayEnabled && source.campaignEnabled && shortsEnabled && (!Number.isFinite(awayUntil) || awayUntil <= 0 || awayUntil > 8.64e15)) {
+    errors.push({ field: "awayUntil", message: "Choose a valid return date and time." });
+  }
   const shortsProgress = {};
   const locked = Object.fromEntries(TYPE_ORDER.map(type => [type, 0]));
   for (const section of CAMPAIGN_SECTIONS) {
@@ -213,6 +220,8 @@ export function validateInput(raw) {
       campaignEnabled: Boolean(source.campaignEnabled),
       campaignTargetName,
       shortsEnabled,
+      awayEnabled,
+      awayUntil: Number.isFinite(awayUntil) && awayUntil > 0 && awayUntil <= 8.64e15 ? awayUntil : 0,
       shortsProgress,
       relic11Level,
       modifiers

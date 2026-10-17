@@ -44,13 +44,13 @@ export class OptimizerWorkerClient {
   }
 
   // Send settings to the worker and wait for the result.
-  run(input, { onProgress = () => {}, onCheckpoint = () => {}, reservedFarms = [] } = {}) {
+  run(input, { onProgress = () => {}, onCheckpoint = () => {}, reservedFarms = [], plannedAt = Date.now() } = {}) {
     if (this.active) throw new Error("An optimisation is already running.");
     const requestId = `request-${++this.sequence}`;
     const worker = this.ensureWorker();
     return new Promise((resolve, reject) => {
       this.active = { requestId, resolve, reject, onProgress, onCheckpoint, latestCheckpoint: null, startedAt: performance.now() };
-      worker.postMessage({ type: "optimize", requestId, input, reservedFarms });
+      worker.postMessage({ type: "optimize", requestId, input, reservedFarms, plannedAt });
     });
   }
 

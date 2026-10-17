@@ -2,16 +2,16 @@ import {
   farmUnlockCampaign,
   MATS,
   TYPE_ORDER
-} from "./src/data.js?v=3.2.5";
-import { canonicalStringify } from "./src/random.js?v=3.2.5";
-import { progressAtShortsStep } from "./src/shorts-progress.js?v=3.2.5";
-import { etaTimestamp, formatLocalETA } from "./src/eta.js?v=3.2.5";
-import { DURATION_PATTERN, parseRemainingTime, formatRemainingTime } from "./src/duration-input.js?v=3.2.5";
-import { createTracker, transitionTracker, trackerActions, trackerProgress, trackerSettingsKey, prepareTrackerUpdate, mergeTrackerUpdate, saveTracker, loadTracker, clearTracker, pendingNotifications, TRACKER_STORAGE_KEY } from "./src/shorts-tracker.js?v=3.2.5";
-import { createTrackerView, SECTION_TITLES } from "./src/tracker-view.js?v=3.2.5";
-import { buildProgressView, formatDuration, formatSolverUpdateAge, formatSolverWork } from "./src/progress.js?v=3.2.5";
-import { clearState, loadState, saveState } from "./src/state.js?v=3.2.5";
-import { OptimizerCancelledError, OptimizerWorkerClient } from "./src/worker-client.js?v=3.2.5";
+} from "./src/data.js?v=3.2.6";
+import { canonicalStringify } from "./src/random.js?v=3.2.6";
+import { progressAtShortsStep } from "./src/shorts-progress.js?v=3.2.6";
+import { etaTimestamp, formatLocalETA } from "./src/eta.js?v=3.2.6";
+import { DURATION_PATTERN, parseRemainingTime, formatRemainingTime } from "./src/duration-input.js?v=3.2.6";
+import { createTracker, transitionTracker, trackerActions, trackerProgress, trackerSettingsKey, prepareTrackerUpdate, mergeTrackerUpdate, saveTracker, loadTracker, clearTracker, pendingNotifications, TRACKER_STORAGE_KEY } from "./src/shorts-tracker.js?v=3.2.6";
+import { createTrackerView, SECTION_TITLES } from "./src/tracker-view.js?v=3.2.6";
+import { buildProgressView, formatDuration, formatSolverUpdateAge, formatSolverWork } from "./src/progress.js?v=3.2.6";
+import { clearState, loadState, saveState } from "./src/state.js?v=3.2.6";
+import { OptimizerCancelledError, OptimizerWorkerClient } from "./src/worker-client.js?v=3.2.6";
 import {
   createDefaultInput,
   CAMPAIGN_SECTIONS,
@@ -19,9 +19,11 @@ import {
   getVisibleCampaignNames,
   getVisibleFarmNames,
   validateInput
-} from "./src/validation.js?v=3.2.5";
+} from "./src/validation.js?v=3.2.6";
 
-const APP_VERSION = "3.2.5";
+import { localDateTimeValue } from "./src/away-mode.js?v=3.2.6";
+
+const APP_VERSION = "3.2.6";
 const elements = new Map();
 // Find a page element and remember it for later use.
 const byId = id => {
@@ -55,7 +57,7 @@ let lastSolverUpdateAt = null;
 let lastSolverUpdate = 0;
 const workerClient = new OptimizerWorkerClient(() => {
   if (!window.Worker) throw new Error("This browser does not support background optimisation.");
-  return new Worker(new URL("./src/worker.js?v=3.2.5", import.meta.url), { type: "module" });
+  return new Worker(new URL("./src/worker.js?v=3.2.6", import.meta.url), { type: "module" });
 });
 
 // Show the selected tab and optionally move focus to it.
@@ -303,6 +305,8 @@ function readFormInput() {
     fragmentsPerCompletion: byId("baseFragmentsInput").value,
     campaignEnabled: byId("campaignEnabled").checked,
     shortsEnabled: byId("campaignEnabled").checked,
+    awayEnabled: byId("awayEnabled").checked,
+    awayUntil: byId("awayUntil").value ? new Date(byId("awayUntil").value).getTime() : 0,
     shortsProgress: readShortsProgress(),
     relic11Level: byId("relic11").value,
     modifiers: {
@@ -334,6 +338,9 @@ function applyInput(input) {
   selectedFarmMissions = new Set(input.selectedFarmMissions);
   selectedCampaignFarmMissions = new Set(input.selectedCampaignFarmMissions);
   byId("campaignEnabled").checked = input.campaignEnabled;
+  byId("awayEnabled").checked = Boolean(input.awayEnabled);
+  byId("awayUntil").value = localDateTimeValue(input.awayUntil);
+  byId("awayFields").hidden = !input.awayEnabled;
   renderShortsControls(input.shortsProgress);
   byId("relic11").value = input.relic11Level;
   byId("baseFragmentsInput").value = input.fragmentsPerCompletion;
@@ -532,7 +539,7 @@ async function runOptimizer() {
   persistInput(input);
   try {
     startProgress();
-    const result = await workerClient.run(input, { onProgress: updateProgress, reservedFarms: trackingRequest?.reservedFarms || [] });
+    const result = await workerClient.run(input, { onProgress: updateProgress, reservedFarms: trackingRequest?.reservedFarms || [], plannedAt: inputReadAt });
     if (suppressNextCancellationStatus) {
       suppressNextCancellationStatus = false;
       stopProgress();
@@ -549,7 +556,7 @@ async function runOptimizer() {
     } else {
       // Imported timers were read before the search. Search time must not extend them.
       const hasRunningMissions = result.shortsPlan?.jobs.some(job => job.alreadyRunning);
-      renderResult(result, input, hasRunningMissions ? inputReadAt : Date.now());
+      renderResult(result, input, hasRunningMissions || input.awayEnabled ? inputReadAt : Date.now());
     }
     const completionStatus = result.solutionStatus === "cancelled-best" ? "Cancelled — best found"
       : result.shortsPlan ? (result.shortsPlan.status === "blocked" ? "Plan blocked" : "Plan complete.")
@@ -644,6 +651,8 @@ function renderShortsResult(result, input, startedAt) {
   byId("shortsSummary").textContent = plan.status === "blocked"
     ? `Route cannot finish all targets. Awaiting personnel: ${plan.unresolved.join(", ") || "remaining campaigns"}.`
     : `${plan.jobs.length} campaign${plan.jobs.length === 1 ? "" : "s"} ${tracker ? "in the last plan · Estimated total" : "remaining · All targets complete in"} ${formatRouteTime(plan.totalHours)}. ${tracker ? "Estimated finish" : "ETA"}: ${formatLocalETA(startedAt, plan.totalHours)}.`;
+  if (plan.awayHours > 0) byId("shortsSummary").textContent += ` Away mode: back at ${formatLocalETA(input.awayUntil, 0)}. Launch the first batch now; no further launches or farm starts are planned before you return. Total time includes waiting to collect completed missions.`;
+  else if (input.awayEnabled) byId("shortsSummary").textContent += " Your return time has passed; this plan assumes you are available now.";
   byId("shortsVerification").textContent = plan.status === "blocked" ? "Add workers or select fewer farms." : "Plan complete.";
   byId("shortsSteps").replaceChildren();
   plan.steps.forEach((step, index) => {
@@ -653,6 +662,7 @@ function renderShortsResult(result, input, startedAt) {
     const title = document.createElement("h4");
     const finishedNames = new Intl.ListFormat(undefined, { style: "long", type: "conjunction" }).format(step.completed);
     title.textContent = index === 0 ? "Start now" : `After ${finishedNames} ${step.completed.length === 1 ? "has" : "have"} finished`;
+    if (index > 0 && plan.awayHours > 0 && step.timeHours === plan.awayHours) title.textContent = `When you return — collect ${finishedNames}`;
     item.append(title);
     const localTime = document.createElement("p");
     localTime.className = "tiny-note";
@@ -673,8 +683,10 @@ function renderShortsResult(result, input, startedAt) {
       const label = document.createElement("strong");
       label.textContent = `Run ${job.name}`;
       const workers = TYPE_ORDER.filter(type => job.workers[type] > 0).map(type => `${formatNumber(job.workers[type], 0)} ${type}${job.workers[type] === 1 ? "" : "s"}`).join(" · ");
-      launch.append(label, document.createElement("br"), document.createTextNode(workers), document.createElement("br"), document.createTextNode(`Duration: ${formatRouteTime(job.endHours - job.startHours)} · Finishes ${formatRouteTime(job.endHours)} after the plan starts`));
-      launch.append(document.createElement("br"), document.createTextNode("ETA: "), createETA(startedAt, job.endHours));
+      const finish = job.finishHours ?? job.endHours;
+      launch.append(label, document.createElement("br"), document.createTextNode(workers), document.createElement("br"), document.createTextNode(`Duration: ${formatRouteTime(finish - job.startHours)} · Finishes ${formatRouteTime(finish)} after the plan starts`));
+      launch.append(document.createElement("br"), document.createTextNode("ETA: "), createETA(startedAt, finish));
+      if (finish < job.endHours) launch.append(document.createElement("br"), document.createTextNode("Finishes while you’re away; collect it when you return."));
       item.append(launch);
     });
     const continuing = step.running.filter(job => job.startHours < step.timeHours || job.alreadyRunning);
@@ -683,8 +695,9 @@ function renderShortsResult(result, input, startedAt) {
       keep.className = "tiny-note shorts-continuing";
       continuing.forEach(job => {
         const line = document.createElement("li");
-        line.textContent = `Keep ${job.name} running — ${formatRouteTime(job.endHours - step.timeHours)} remaining.`;
-        line.append(document.createTextNode(" ETA: "), createETA(startedAt, job.endHours));
+        const finish = job.finishHours ?? job.endHours;
+        line.textContent = `Keep ${job.name} running — ${formatRouteTime(Math.max(0, finish - step.timeHours))} remaining.`;
+        line.append(document.createTextNode(" ETA: "), createETA(startedAt, finish));
         keep.append(line);
       });
       item.append(keep);
@@ -711,7 +724,7 @@ function renderShortsResult(result, input, startedAt) {
     if (plan.steps[index + 1]) {
       const wait = document.createElement("p");
       wait.className = "tiny-note";
-      wait.textContent = `Wait ${formatRouteTime(plan.steps[index + 1].timeHours - step.timeHours)} for the next completion.`;
+      wait.textContent = `Wait ${formatRouteTime(plan.steps[index + 1].timeHours - step.timeHours)} ${plan.awayHours > 0 && index === 0 ? "until your next planned check-in" : "for the next completion"}.`;
       item.append(wait);
     } else if (plan.status !== "blocked") {
       const done = document.createElement("p");
@@ -836,6 +849,13 @@ function initialiseSelectionButtons() {
 
 // Connect settings changes and the run, cancel, and reset buttons.
 function initialiseForm() {
+  byId("awayEnabled").addEventListener("change", () => {
+    byId("awayFields").hidden = !byId("awayEnabled").checked;
+    if (byId("awayEnabled").checked && !(new Date(byId("awayUntil").value).getTime() > Date.now())) {
+      byId("awayUntil").value = localDateTimeValue(Date.now() + 8 * 3600000);
+    }
+    scheduleSave();
+  });
   byId("ouroToggle").addEventListener("change", () => {
     const shortsProgress = readShortsProgress();
     const mode = byId("modeSelect").value;

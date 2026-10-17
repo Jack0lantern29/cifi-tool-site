@@ -1,4 +1,4 @@
-import { MATS } from "./data.js?v=3.2.5";
+import { MATS } from "./data.js?v=3.2.6";
 
 export const OBJECTIVE_EPSILON = 1e-9;
 // Overkill stops once the incumbent is certified within 0.0001% of the best bound.

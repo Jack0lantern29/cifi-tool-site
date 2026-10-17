@@ -1,4 +1,4 @@
-import { CAMPAIGN_SECTIONS } from "./validation.js?v=3.2.5";
+import { CAMPAIGN_SECTIONS } from "./validation.js?v=3.2.6";
 
 // Capture progress immediately after completions, before this step's new launches.
 export function progressAtShortsStep(progress, plan, timeHours) {
@@ -8,7 +8,7 @@ export function progressAtShortsStep(progress, plan, timeHours) {
     const running = plan.jobs.find(job => job.section === section && (job.startHours < timeHours || job.alreadyRunning) && job.endHours > timeHours);
     return [section, {
       completed, target: progress[section].target,
-      active: running ? { remainingHours: running.endHours - timeHours, workers: { ...running.workers } } : null
+      active: running ? { remainingHours: (running.finishHours ?? running.endHours) - timeHours, workers: { ...running.workers } } : null
     }];
   }));
 }

@@ -148,9 +148,9 @@ try {
   await waitFor(`!document.querySelector('#runOptimizerBtn').disabled`);
   assert.equal(await evaluate(`localStorage.getItem('cifi-shorts-tracker-v1')`), snapshot, "cancelled updates retain the tracker");
   await evaluate(`document.querySelector('#shorts-target-C1').value='2'; document.querySelector('#searchEffort').checked=false; document.querySelector('#count-mining-pod').dispatchEvent(new Event('change',{bubbles:true}))`);
-  const screenshot = async name => {
-    if (!process.env.CIFI_TRACKER_SCREENSHOTS) return;
-    const clip = await evaluate(`(()=>{ const r=document.querySelector('#shortsTracker').getBoundingClientRect(); return {x:r.left+scrollX,y:r.top+scrollY,width:r.width,height:r.height,scale:1}; })()`);
+  const screenshot = async (name, selector = '#shortsTracker') => {
+    if (!process.env.CIFI_TRACKER_SCREENSHOTS && !process.argv.includes('--screenshots')) return;
+    const clip = await evaluate(`(()=>{ const r=document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect(); return {x:r.left+scrollX,y:r.top+scrollY,width:r.width,height:r.height,scale:1}; })()`);
     const capture = await send("Page.captureScreenshot", { clip, captureBeyondViewport: true });
     const path = join(tmpdir(), `cifi-tracker-${name}.png`);
     await writeFile(path, Buffer.from(capture.data, "base64"));
@@ -292,8 +292,35 @@ try {
   assert.ok(await evaluate(`document.querySelector('.tracker-actions').textContent.includes('concurrently')`));
   for (let launch=0; launch<4; launch++) await click("Start mission");
   assert.equal(await evaluate(`Object.values(JSON.parse(localStorage.getItem('cifi-shorts-tracker-v1')).missions).filter(job=>job.status==='running').length`), 4);
+  // Away mode uses an absolute local return time, survives reopening, and
+  // preserves actual running timers when it is enabled for an existing plan.
+  const awayTimers = await evaluate(`Object.values(JSON.parse(localStorage.getItem('cifi-shorts-tracker-v1')).missions).filter(job=>job.status==='running').map(job=>[job.name,job.endsAt,job.workers])`);
+  assert.equal(await evaluate(`document.querySelector('#awayEnabled').checked`), false);
+  await evaluate(`document.querySelector('#awayEnabled').click()`);
+  assert.equal(await evaluate(`document.querySelector('#awayFields').hidden`), false);
+  const returnAt = await evaluate(`new Date(document.querySelector('#awayUntil').value).getTime()`);
+  assert.ok(returnAt > Date.now());
+  await click("Update remaining plan");
+  await waitFor(`document.querySelector('#statusText').textContent==='Plan complete.' && JSON.parse(localStorage.getItem('cifi-shorts-tracker-v1')).input.awayEnabled`);
+  assert.ok(await evaluate(`document.querySelector('#shortsSummary').textContent.includes('Away mode')`));
+  assert.deepEqual(await evaluate(`Object.values(JSON.parse(localStorage.getItem('cifi-shorts-tracker-v1')).missions).filter(job=>job.status==='running').map(job=>[job.name,job.endsAt,job.workers])`), awayTimers);
+  assert.ok(await evaluate(`JSON.parse(localStorage.getItem('cifi-shorts-tracker-v1')).result.shortsPlan.jobs.every(job=>job.startHours===0 || job.startHours>=JSON.parse(localStorage.getItem('cifi-shorts-tracker-v1')).result.shortsPlan.awayHours)`));
+  await send("Page.reload");
+  await waitFor(`document.querySelector('.tracker-away-help')?.textContent.includes('Away mode')`);
+  assert.equal(await evaluate(`new Date(document.querySelector('#awayUntil').value).getTime()`), returnAt);
+  assert.equal(await evaluate(`document.querySelector('#awayEnabled').checked`), true);
+  await send("Emulation.setDeviceMetricsOverride", {width:390,height:844,deviceScaleFactor:1,mobile:true});
+  await evaluate(`document.querySelector('.away-controls').scrollIntoView()`);
+  assert.ok(await evaluate(`document.querySelector('#awayUntil').getBoundingClientRect().right <= innerWidth`));
+  await screenshot("away-mobile", ".away-controls");
+  await send("Emulation.setDeviceMetricsOverride", {width:1440,height:1000,deviceScaleFactor:1,mobile:false});
+  await screenshot("away-desktop", ".away-controls");
+  await evaluate(`document.querySelector('#awayEnabled').click()`);
+  await click("Update remaining plan");
+  await waitFor(`!JSON.parse(localStorage.getItem('cifi-shorts-tracker-v1')).input.awayEnabled`);
+  assert.equal(await evaluate(`document.querySelector('.tracker-away-help').hidden`), true);
   assert.deepEqual(exceptions, []);
-  console.log("Browser checks passed: keyboard starts, manual completion, corrections, opt-in notifications, deduplication, refresh, live replan, failed/cancelled updates, reset, mobile, reduced motion, Campaign Planner and Ouroboros mode switching.");
+  console.log("Browser checks passed: keyboard starts, manual completion, corrections, opt-in notifications, deduplication, refresh, live replan, failed/cancelled updates, reset, mobile, reduced motion, Campaign Planner, Ouroboros switching, and Away mode persistence and locked timers.");
 } finally {
   socket?.close();
   browser.kill();

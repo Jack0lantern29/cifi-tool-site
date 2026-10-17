@@ -47,6 +47,21 @@ test("exact search considers waiting for locked workers and never modifies their
   assert.equal(result.jobs[1].startHours, 1);
 });
 
+test("away search matches a two-mission oracle including delayed collection", () => {
+  for (const away of [2, 8]) for (const a of [1, 3]) for (const b of [1, 2]) for (const x of [2, 7]) for (const y of [3, 9]) {
+    const fast = Math.max(a, b);
+    const optimum = Math.min(
+      Math.max(away, x / a, y / b), Math.max(away, x / b, y / a),
+      Math.max(away, x / fast) + y / fast, Math.max(away, y / fast) + x / fast
+    );
+    const result = exactShorts([[task(0, x)], [task(1, y)]], [], crew(1, 1), workers(a, b), { jobs: [], totalHours: 1e6 }, 100000, {}, away);
+    assert.equal(result.exhausted, true);
+    assert.ok(Math.abs(result.totalHours - optimum) < 1e-9);
+    assert.ok(result.jobs.every(job => job.startHours === 0 || job.startHours >= away));
+    assert.ok(result.jobs.every(job => job.finishHours <= job.endHours));
+  }
+});
+
 test("a truncated search never claims that it exhausted all schedules", () => {
   const result = exactShorts([[task(0, 3)], [task(1, 3)]], [], crew(1, 1), workers(3, 2), { jobs: [], totalHours: 2 }, 0);
   assert.equal(result.exhausted, false);
