@@ -14,7 +14,7 @@ const server = createServer(async (req, res) => {
     const pathname = decodeURIComponent(new URL(req.url, "http://localhost").pathname);
     const file = resolve(base, `.${pathname === "/" ? "/index.html" : pathname}`);
     if (!file.startsWith(base + "/") && !file.startsWith(base + "\\")) throw new Error("Invalid path");
-    res.setHeader("Content-Type", ({ ".js": "text/javascript", ".html": "text/html", ".css": "text/css", ".wasm": "application/wasm" })[extname(file)] || "application/octet-stream");
+    res.setHeader("Content-Type", ({ ".js": "text/javascript", ".mjs": "text/javascript", ".html": "text/html", ".css": "text/css", ".wasm": "application/wasm" })[extname(file)] || "application/octet-stream");
     res.end(await readFile(file));
   } catch (error) { res.writeHead(404); res.end(error.message); }
 });
@@ -49,7 +49,7 @@ try {
   };
   const waitFor = async expression => {
     for (let tries = 0; tries < 100; tries++) { if (await evaluate(expression)) return; await delay(100); }
-    throw new Error(`Timed out: ${expression}\n${JSON.stringify(exceptions)}\n${await evaluate("document.querySelector('#shortsTracker')?.innerText || document.body.innerText.slice(0, 400)")}\n${await evaluate("document.activeElement.outerHTML.slice(0, 500)")}`);
+    throw new Error(`Timed out: ${expression}\n${JSON.stringify(exceptions)}\n${await evaluate("document.querySelector('#statusText')?.textContent + '\\n' + document.querySelector('#stateNotice')?.textContent + '\\n' + document.querySelector('#shortsTracker')?.innerText")}\n${await evaluate("document.activeElement.outerHTML.slice(0, 500)")}`);
   };
   const click = text => evaluate(`Array.from(document.querySelectorAll('button')).find(button => button.textContent === ${JSON.stringify(text)} && !button.disabled && button.getClientRects().length)?.click()`);
   await send("Runtime.enable");

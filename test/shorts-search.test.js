@@ -1,12 +1,108 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { TYPE_ORDER } from "../src/data.js";
+import { MISSION_DATA, TYPE_ORDER } from "../src/data.js";
+import { calculateGlobalSpeedMultiplier, createDefaultInput } from "../src/validation.js";
 import { createSeededRandom } from "../src/random.js";
-import { exactShorts, refineShorts, balancedShorts, polishShorts, shortsLowerBound } from "../src/shorts-search.js";
+import { advanceAwayStarts as jointAwayStarts, exactShorts, refineShorts, balancedShorts, polishShorts, shortsLowerBound } from "../src/shorts-search.js";
+import { loadOptimizationSolver } from "../src/crazy-optimizer.js";
+import { solveAwayAllocation } from "../src/away-allocation.js";
+
+const highs = await loadOptimizationSolver();
+const solveCrews = (...args) => solveAwayAllocation(highs, ...args);
+const advanceAwayStarts = (chains, initial, available, powers, incumbent, farms = {}, hours = 0) => jointAwayStarts(chains, initial, available, powers, incumbent, farms, hours, solveCrews);
 
 const crew = (pods = 0, carriers = 0) => Object.fromEntries(TYPE_ORDER.map((type, index) => [type, [pods, carriers, 0, 0][index]]));
 const workers = (a, b) => Object.fromEntries(TYPE_ORDER.map((type, index) => [type, { power: [a, b, 0, 0][index] }]));
 const task = (chain, work, cap = 1) => ({ name: `C${chain + 1}-1`, section: `C${chain + 1}`, chain, work, cap });
+
+test("away repair launches C2-9 with the reported spare personnel instead of waiting for a larger crew", () => {
+  const input = createDefaultInput();
+  input.ouroUnlocked = true;
+  Object.assign(input.modifiers, { engineeringBadge: true, swarmLevel: 40, productivityLevel: 11, research58: 6, research70: 6, research80: 2, relic3: 40, ts07Enabled: true });
+  const powers = Object.fromEntries(TYPE_ORDER.map((type, i) => [type, { power: [6.5, 13, 22, 41][i] }]));
+  const spare = Object.fromEntries(TYPE_ORDER.map((type, i) => [type, [716, 129, 2, 415][i]]));
+  const mission = MISSION_DATA.find(row => row.name === "C2-9");
+  const target = { name: mission.name, section: "C2", chain: 1, cap: mission.cap * 2.5, work: mission.minutes / 60 / calculateGlobalSpeedMultiplier(input) };
+  const fullPower = TYPE_ORDER.reduce((value, type) => value + spare[type] * powers[type].power, 0);
+  assert.equal(Math.floor(target.work / fullPower * 3600), 4 * 3600 + 8 * 60 + 52);
+  const locked = { ...task(0, 1, 1000), name: "C1-9", workers: crew(0, 936), startHours: 0, finishHours: 2 + 22 / 60 + 51 / 3600, endHours: 10, alreadyRunning: true };
+  const available = Object.fromEntries(TYPE_ORDER.map(type => [type, spare[type] + locked.workers[type]]));
+  const largerCrew = { ...spare, "Fireteam Carrier": 1065 };
+  const power = TYPE_ORDER.reduce((value, type) => value + largerCrew[type] * powers[type].power, 0);
+  const queued = { ...target, workers: largerCrew, startHours: 10, finishHours: 10 + target.work / power, endHours: 10 + target.work / power, alreadyRunning: false };
+  const incumbent = { jobs: [locked, queued], totalHours: queued.endHours };
+  const result = advanceAwayStarts([[locked], [target]], [locked], available, powers, incumbent, {}, 10);
+  const launched = result.jobs.find(job => job.name === "C2-9");
+  assert.equal(launched.startHours, 0);
+  assert.ok(launched.finishHours <= 10);
+  assert.equal(launched.endHours, 10);
+  assert.ok(TYPE_ORDER.every(type => launched.workers[type] <= spare[type]));
+  assert.deepEqual(result.jobs.find(job => job.alreadyRunning), locked);
+  assert.ok(result.totalHours < incumbent.totalHours);
+});
+
+test("away repair honours farm unlocks, caps, prerequisites, and insufficient spare power", () => {
+  const locked = { ...task(0, 1), workers: crew(0, 1), startHours: 0, finishHours: 12, endHours: 12, alreadyRunning: true };
+  const target = task(1, 4);
+  const queued = { ...target, workers: crew(1), startHours: 12, finishHours: 16, endHours: 16 };
+  const incumbent = { jobs: [locked, queued], totalHours: 16 };
+  const run = (job = target, pool = crew(1, 1), reservations = {}, away = 8) => advanceAwayStarts([[locked], [job]], [locked], pool, workers(1, 1), { ...incumbent, jobs: [locked, { ...queued, ...job }] }, reservations, away);
+  assert.equal(run().jobs[1].startHours, 0);
+  assert.equal(run(target, crew(1, 1), { [target.name]: [{ name: "F2-1", type: TYPE_ORDER[1], count: 1 }] }).jobs[1].startHours, 12, "an earlier unlock cannot take workers from a running mission");
+  assert.equal(run({ ...target, prerequisite: locked.name }).jobs[1].startHours, 12);
+  assert.equal(run({ ...target, work: 20 }, crew(100, 1)).jobs[1].startHours, 12, "spare workers cannot bypass the mission cap");
+  assert.equal(run(target, crew(0, 1)).jobs[1].startHours, 12);
+  assert.equal(run(target, crew(1, 1), {}, 0).jobs[1].startHours, 12);
+});
+
+test("away repair uses idle capacity even when another section fixes the final ETA", () => {
+  const locked = { ...task(0, 1), workers: crew(0, 1), startHours: 0, finishHours: 20, endHours: 20, alreadyRunning: true };
+  const targets = [task(1, 4), task(2, 4)];
+  const jobs = targets.map(job => ({ ...job, workers: crew(1), startHours: 8, finishHours: 12, endHours: 12 }));
+  const result = advanceAwayStarts([[locked], [targets[0]], [targets[1]]], [locked], crew(2, 1), workers(1, 1), { jobs: [locked, ...jobs], totalHours: 20 }, {}, 8);
+  assert.equal(result.totalHours, 20);
+  assert.ok(result.jobs.filter(job => !job.alreadyRunning).every(job => job.startHours === 0 && job.endHours === 8));
+  assert.deepEqual(result.jobs.find(job => job.alreadyRunning), locked);
+});
+
+test("joint away check exchanges worker types to fit a tight-cap mission before return", () => {
+  const first = task(0, 8, 10), second = task(1, 80, 1);
+  const jobs = [
+    { ...first, workers: crew(0, 1), startHours: 0, finishHours: 0.8, endHours: 8 },
+    { ...second, workers: crew(0, 1), startHours: 8, finishHours: 16, endHours: 16 }
+  ];
+  const result = advanceAwayStarts([[first], [second]], [], crew(10, 1), workers(1, 10), { jobs, totalHours: 16 }, {}, 8);
+  assert.equal(result.totalHours, 8);
+  assert.ok(result.jobs.every(job => job.startHours === 0));
+  assert.equal(result.jobs[0].workers[TYPE_ORDER[1]], 0, "release the strong worker from the roomy mission");
+  assert.equal(result.jobs[1].workers[TYPE_ORDER[1]], 1);
+});
+
+test("joint away check reduces an early crew even when no personnel are currently spare", () => {
+  const first = task(0, 8, 2), second = task(1, 8, 1);
+  const jobs = [
+    { ...first, workers: crew(2), startHours: 0, finishHours: 4, endHours: 8 },
+    { ...second, workers: crew(1), startHours: 8, finishHours: 16, endHours: 16 }
+  ];
+  const result = advanceAwayStarts([[first], [second]], [], crew(2), workers(1, 0), { jobs, totalHours: 16 }, {}, 8);
+  assert.equal(result.totalHours, 8);
+  assert.ok(result.jobs.every(job => job.startHours === 0 && job.workers[TYPE_ORDER[0]] === 1));
+});
+
+test("joint integer feasibility agrees with exhaustive independent crew enumeration", () => {
+  let cases = 0;
+  for (const slow of [1, 2]) for (const fast of [3, 5]) for (const pods of [0, 1, 3]) for (const carriers of [0, 1, 2]) for (const cap of [1, 3]) for (const work of [2, 5, 11]) {
+    const jobs = [task(0, work, cap), task(1, 7, 3)];
+    let feasible = false;
+    for (let a = 0; a <= pods; a++) for (let b = 0; b <= carriers; b++) for (let c = 0; c <= pods - a; c++) for (let d = 0; d <= carriers - b; d++) {
+      if (a + b <= cap && c + d <= 3 && a * slow + b * fast >= work && c * slow + d * fast >= 7) feasible = true;
+    }
+    const result = solveCrews(jobs, crew(pods, carriers), workers(slow, fast), 1);
+    assert.equal(Boolean(result), feasible, JSON.stringify({ slow, fast, pods, carriers, cap, work }));
+    cases++;
+  }
+  assert.equal(cases, 216);
+});
 
 test("exhaustive search certifies an optimum above the relaxed work bound", () => {
   const chains = [[task(0, 3)], [task(1, 3)]];

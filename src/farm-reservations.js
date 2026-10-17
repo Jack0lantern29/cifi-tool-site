@@ -1,4 +1,4 @@
-import { farmUnlockCampaign, TYPE_ORDER } from "./data.js?v=3.2.6";
+import { farmUnlockCampaign, TYPE_ORDER } from "./data.js?v=3.2.7";
 
 export function createFarmReservations(assignments) {
   const reservations = {};

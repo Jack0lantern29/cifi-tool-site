@@ -7,6 +7,7 @@ const PHASE_LABELS = Object.freeze({
   "shorts-planning": "Comparing campaign schedules…",
   "shorts-refining": "Refining campaign worker allocations…",
   "shorts-polishing": "Improving the overall campaign finish…",
+  "shorts-away-check": "Checking concurrent crews before your return…",
   "loading-solver": "Loading Overkill solver…",
   "crazy-fragment-ideal": "Finding fragment ideal…",
   "crazy-resource-ideal": "Finding resource ideal…",

@@ -6,7 +6,7 @@ import {
   OURO_OFF_VISIBLE_FARMS,
   TYPE_ORDER,
   TYPE_RANK
-} from "./data.js?v=3.2.6";
+} from "./data.js?v=3.2.7";
 import {
   compareSummaries,
   describeObjective,
@@ -15,12 +15,12 @@ import {
   PROOF_RELATIVE_GAP,
   relativeGap,
   summaryFromTotals
-} from "./objective.js?v=3.2.6";
-import { optimize, OptimizerValidationError } from "./optimizer.js?v=3.2.6";
-import { deriveSeed, formatRunId } from "./random.js?v=3.2.6";
-import { calculateGlobalSpeedMultiplier, validateInput } from "./validation.js?v=3.2.6";
-import { createSolverProgress } from "./solver-progress.js?v=3.2.6";
-import { buildProgressView } from "./progress.js?v=3.2.6";
+} from "./objective.js?v=3.2.7";
+import { optimize, OptimizerValidationError } from "./optimizer.js?v=3.2.7";
+import { deriveSeed, formatRunId } from "./random.js?v=3.2.7";
+import { calculateGlobalSpeedMultiplier, validateInput } from "./validation.js?v=3.2.7";
+import { createSolverProgress } from "./solver-progress.js?v=3.2.7";
+import { buildProgressView } from "./progress.js?v=3.2.7";
 
 const MAX_RUNS_PER_HOUR = 1800;
 const NUMERIC_EPSILON = 1e-9;
@@ -38,11 +38,11 @@ function recordSolverDiagnostic_(message) {
 }
 
 // Load the Overkill solver once and reuse it for later runs.
-async function loadSolver_() {
+export async function loadOptimizationSolver() {
   if (!highsPromise) {
-    highsPromise = import("../vendor/highs/highs.mjs?v=3.2.6").then(({ default: loadHighs }) => loadHighs({
+    highsPromise = import("../vendor/highs/highs.mjs?v=3.2.7").then(({ default: loadHighs }) => loadHighs({
       locateFile: file => file.endsWith(".wasm")
-        ? new URL("../vendor/highs/highs.wasm?v=3.2.6", import.meta.url).href
+        ? new URL("../vendor/highs/highs.wasm?v=3.2.7", import.meta.url).href
         : file,
       print: () => {},
       printErr: recordSolverDiagnostic_
@@ -1017,7 +1017,7 @@ async function optimizeCrazy_(rawInput, options = {}) {
     solutionStatus: "best-found",
     upperBound: null,
     relativeGap: null,
-    solverStats: { engine: "CIFI heuristic", version: "3.2.6", nodes: 0, iterations: standard.solverStats?.iterations || 0 },
+    solverStats: { engine: "CIFI heuristic", version: "3.2.7", nodes: 0, iterations: standard.solverStats?.iterations || 0 },
     hybridIdeals: standard.hybridIdeals,
     seed
   });
@@ -1041,7 +1041,7 @@ async function optimizeCrazy_(rawInput, options = {}) {
   }
 
   onProgress({ phase: "loading-solver", determinate: false, completed: 0, total: 1, elapsedMs: performance.now() - startedAt });
-  const highs = await loadSolver_();
+  const highs = await loadOptimizationSolver();
   const aggregate = { nodes: 0, iterations: 0 };
   const activity = createSolverProgress(onProgress, startedAt);
   let hybridIdeals = null;

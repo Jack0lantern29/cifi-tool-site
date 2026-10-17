@@ -2,16 +2,16 @@ import {
   farmUnlockCampaign,
   MATS,
   TYPE_ORDER
-} from "./src/data.js?v=3.2.6";
-import { canonicalStringify } from "./src/random.js?v=3.2.6";
-import { progressAtShortsStep } from "./src/shorts-progress.js?v=3.2.6";
-import { etaTimestamp, formatLocalETA } from "./src/eta.js?v=3.2.6";
-import { DURATION_PATTERN, parseRemainingTime, formatRemainingTime } from "./src/duration-input.js?v=3.2.6";
-import { createTracker, transitionTracker, trackerActions, trackerProgress, trackerSettingsKey, prepareTrackerUpdate, mergeTrackerUpdate, saveTracker, loadTracker, clearTracker, pendingNotifications, TRACKER_STORAGE_KEY } from "./src/shorts-tracker.js?v=3.2.6";
-import { createTrackerView, SECTION_TITLES } from "./src/tracker-view.js?v=3.2.6";
-import { buildProgressView, formatDuration, formatSolverUpdateAge, formatSolverWork } from "./src/progress.js?v=3.2.6";
-import { clearState, loadState, saveState } from "./src/state.js?v=3.2.6";
-import { OptimizerCancelledError, OptimizerWorkerClient } from "./src/worker-client.js?v=3.2.6";
+} from "./src/data.js?v=3.2.7";
+import { canonicalStringify } from "./src/random.js?v=3.2.7";
+import { progressAtShortsStep } from "./src/shorts-progress.js?v=3.2.7";
+import { etaTimestamp, formatLocalETA } from "./src/eta.js?v=3.2.7";
+import { DURATION_PATTERN, parseRemainingTime, formatRemainingTime } from "./src/duration-input.js?v=3.2.7";
+import { createTracker, transitionTracker, trackerActions, trackerProgress, trackerSettingsKey, prepareTrackerUpdate, mergeTrackerUpdate, saveTracker, loadTracker, clearTracker, pendingNotifications, TRACKER_STORAGE_KEY } from "./src/shorts-tracker.js?v=3.2.7";
+import { createTrackerView, SECTION_TITLES } from "./src/tracker-view.js?v=3.2.7";
+import { buildProgressView, formatDuration, formatSolverUpdateAge, formatSolverWork } from "./src/progress.js?v=3.2.7";
+import { clearState, loadState, saveState } from "./src/state.js?v=3.2.7";
+import { OptimizerCancelledError, OptimizerWorkerClient } from "./src/worker-client.js?v=3.2.7";
 import {
   createDefaultInput,
   CAMPAIGN_SECTIONS,
@@ -19,11 +19,11 @@ import {
   getVisibleCampaignNames,
   getVisibleFarmNames,
   validateInput
-} from "./src/validation.js?v=3.2.6";
+} from "./src/validation.js?v=3.2.7";
 
-import { localDateTimeValue } from "./src/away-mode.js?v=3.2.6";
+import { localDateTimeValue } from "./src/away-mode.js?v=3.2.7";
 
-const APP_VERSION = "3.2.6";
+const APP_VERSION = "3.2.7";
 const elements = new Map();
 // Find a page element and remember it for later use.
 const byId = id => {
@@ -57,7 +57,7 @@ let lastSolverUpdateAt = null;
 let lastSolverUpdate = 0;
 const workerClient = new OptimizerWorkerClient(() => {
   if (!window.Worker) throw new Error("This browser does not support background optimisation.");
-  return new Worker(new URL("./src/worker.js?v=3.2.6", import.meta.url), { type: "module" });
+  return new Worker(new URL("./src/worker.js?v=3.2.7", import.meta.url), { type: "module" });
 });
 
 // Show the selected tab and optionally move focus to it.

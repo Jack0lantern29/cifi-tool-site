@@ -1,8 +1,8 @@
-import { ALL_CAMPAIGN_MISSIONS, ALL_FARM_MISSIONS, MISSION_DATA, TYPE_ORDER, farmUnlockCampaign } from "./data.js?v=3.2.6";
-import { CAMPAIGN_SECTIONS, calculateGlobalSpeedMultiplier, validateInput } from "./validation.js?v=3.2.6";
-import { SECTION_REQUIREMENTS } from "./campaign-unlocks.js?v=3.2.6";
-import { checkFarmReservationHorizon, createFarmReservations } from "./farm-reservations.js?v=3.2.6";
-import { canonicalStringify } from "./random.js?v=3.2.6";
+import { ALL_CAMPAIGN_MISSIONS, ALL_FARM_MISSIONS, MISSION_DATA, TYPE_ORDER, farmUnlockCampaign } from "./data.js?v=3.2.7";
+import { CAMPAIGN_SECTIONS, calculateGlobalSpeedMultiplier, validateInput } from "./validation.js?v=3.2.7";
+import { SECTION_REQUIREMENTS } from "./campaign-unlocks.js?v=3.2.7";
+import { checkFarmReservationHorizon, createFarmReservations } from "./farm-reservations.js?v=3.2.7";
+import { canonicalStringify } from "./random.js?v=3.2.7";
 
 export const TRACKER_STORAGE_KEY = "cifi-shorts-tracker-v1";
 const crew = value => Object.fromEntries(TYPE_ORDER.map(type => [type, value?.[type] || 0]));

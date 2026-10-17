@@ -1,7 +1,8 @@
-import { TYPE_ORDER } from "./data.js?v=3.2.6";
-import { checkFarmReservationHorizon, reserveUnlockedFarms } from "./farm-reservations.js?v=3.2.6";
-import { isCampaignReady } from "./campaign-unlocks.js?v=3.2.6";
-import { campaignTiming } from "./away-mode.js?v=3.2.6";
+import { shortsScheduleErrors } from "./shorts-validation.js?v=3.2.7";
+import { TYPE_ORDER } from "./data.js?v=3.2.7";
+import { checkFarmReservationHorizon, reserveUnlockedFarms } from "./farm-reservations.js?v=3.2.7";
+import { isCampaignReady } from "./campaign-unlocks.js?v=3.2.7";
+import { campaignTiming } from "./away-mode.js?v=3.2.7";
 
 const MIN_HOURS = 2 / 3600;
 const counts = source => Object.fromEntries(TYPE_ORDER.map(type => [type, source?.[type] || 0]));
@@ -140,6 +141,44 @@ function scheduleCrews(chains, initialJobs, available, workers, crews, prioritie
     running = running.filter(job => job.endHours > time);
   }
   return { jobs, totalHours: time };
+}
+
+// Check every subset of ready first missions jointly, allowing crews already
+// proposed for departure to shrink or exchange worker types. Running missions
+// and non-selected launches stay fixed. This is a dominance check against the
+// current route, not a proof that the entire multi-day schedule is optimal.
+export function advanceAwayStarts(chains, initialJobs, available, workers, incumbent, farmReservations = {}, awayHours = 0, solveCrews, onProgress = () => {}) {
+  if (!(awayHours > 0) || !Number.isFinite(incumbent.totalHours)) return incumbent;
+  if (!solveCrews) throw new Error("Away mode requires the joint crew allocation check.");
+  const eligible = chains.map(chain => incumbent.jobs.find(job => job.name === chain[0]?.name))
+    .filter(job => job && !job.alreadyRunning && isCampaignReady(job, incumbent.jobs, 0));
+  const score = plan => sum(plan.jobs.map(job => job.endHours));
+  const better = (a, b) => a.totalHours < b.totalHours || (a.totalHours === b.totalHours && score(a) < score(b));
+  let best = incumbent, checkedSubsets = 0, feasibleSubsets = 0;
+  for (let mask = 1; mask < (1 << eligible.length); mask++) {
+    const selected = eligible.filter((_, index) => mask & (1 << index));
+    if (selected.every(job => job.startHours === 0 && job.endHours === awayHours)) continue;
+    checkedSubsets++;
+    onProgress({ phase: "shorts-away-check", determinate: true, completed: mask, total: (1 << eligible.length) - 1 });
+    const free = counts(available);
+    incumbent.jobs.filter(job => job.startHours === 0 && !selected.includes(job)).forEach(job => TYPE_ORDER.forEach(type => { free[type] -= job.workers[type]; }));
+    const allocations = solveCrews(selected, free, workers, awayHours);
+    if (!allocations) continue;
+    const jobs = incumbent.jobs.map(job => {
+      if (!selected.includes(job)) return job;
+      const crew = allocations[job.name];
+      return { ...job, workers: crew, startHours: 0, ...campaignTiming(0, Math.max(MIN_HOURS, job.work / powerOf(crew, workers)), awayHours) };
+    });
+    let candidate = { ...incumbent, jobs, totalHours: Math.max(...jobs.map(job => job.endHours)) };
+    if (shortsScheduleErrors(chains, initialJobs, available, workers, candidate, farmReservations, awayHours).length) continue;
+    feasibleSubsets++;
+    const crews = Object.fromEntries(jobs.map(job => [job.name, job.workers]));
+    const priorities = Object.fromEntries(jobs.map(job => [job.name, job.startHours]));
+    const rescheduled = scheduleCrews(chains, initialJobs, available, workers, crews, priorities, farmReservations, awayHours);
+    if (rescheduled && better(rescheduled, candidate) && !shortsScheduleErrors(chains, initialJobs, available, workers, rescheduled, farmReservations, awayHours).length) candidate = { ...candidate, ...rescheduled };
+    if (better(candidate, best)) best = candidate;
+  }
+  return { ...best, awayCheck: { checkedSubsets, feasibleSubsets } };
 }
 
 // Refine actual integer crews, not just dispatch priorities. Transfers, swaps,
