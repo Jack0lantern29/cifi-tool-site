@@ -73,6 +73,9 @@ test("reported C3-11 crew and future farm selections launch C2-9 before return",
     const initialFree = Object.fromEntries(TYPE_ORDER.map(type => [type, input.workers[type].count - input.shortsProgress.C1.active.workers[type] - input.shortsProgress.C3.active.workers[type] - reservedFarms.filter(row => row.type === type).reduce((sum, row) => sum + row.count, 0)]));
     assert.deepEqual(initialFree, counts([716, 129, 2, 415]));
     const result = await optimizeShorts(input, { plannedAt, reservedFarms });
+    for (const job of result.shortsPlan.jobs.filter(job => !job.alreadyRunning)) {
+      assert.ok(result.shortsPlan.steps.some(step => step.timeHours === job.startHours && step.launches.some(launch => launch.name === job.name)));
+    }
     assert.deepEqual(result.assignments.filter(row => row.name.startsWith("F")), reservedFarms);
     assert.equal(result.shortsPlan.status, "best-found");
     assert.deepEqual([...result.shortsPlan.futureFarmNames].sort(), ["F1-4", "F2-4", "F4-1"]);
@@ -88,6 +91,7 @@ test("reported C3-11 crew and future farm selections launch C2-9 before return",
     }
     const launch = result.shortsPlan.jobs.find(job => job.name === "C2-9");
     assert.equal(launch.startHours, 0);
+    assert.deepEqual(result.unassignedWorkers, counts([0, 0, 0, 0]), "use the spare crew instead of merely meeting the return time");
     assert.ok(launch.finishHours <= (awayUntil - plannedAt) / hour);
     for (const section of ["C1", "C3"]) {
       const job = result.shortsPlan.jobs.find(job => job.section === section && job.alreadyRunning);

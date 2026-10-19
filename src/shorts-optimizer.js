@@ -1,15 +1,15 @@
-import { MISSION_DATA, TYPE_ORDER } from "./data.js?v=3.2.7";
-import { CAMPAIGN_SECTIONS, calculateGlobalSpeedMultiplier, getVisibleFarmNames, validateInput } from "./validation.js?v=3.2.7";
-import { optimize, OptimizerValidationError } from "./optimizer.js?v=3.2.7";
-import { loadOptimizationSolver, optimizeCrazy } from "./crazy-optimizer.js?v=3.2.7";
-import { solveAwayAllocation } from "./away-allocation.js?v=3.2.7";
-import { shortsScheduleErrors } from "./shorts-validation.js?v=3.2.7";
-import { createSeededRandom, deriveSeed, formatRunId } from "./random.js?v=3.2.7";
-import { advanceAwayStarts, exactShorts, refineShorts, balancedShorts, polishShorts, shortsLowerBound } from "./shorts-search.js?v=3.2.7";
-import { checkFarmReservationHorizon, createFarmReservations, farmEventsForJobs, reserveUnlockedFarms } from "./farm-reservations.js?v=3.2.7";
-import { campaignPrerequisite, includeCampaignPrerequisites, isCampaignReady } from "./campaign-unlocks.js?v=3.2.7";
-import { mergeTrackedFarms, reserveTrackedFarms } from "./tracked-farms.js?v=3.2.7";
-import { awayHoursRemaining, campaignTiming } from "./away-mode.js?v=3.2.7";
+import { MISSION_DATA, TYPE_ORDER } from "./data.js?v=3.2.8";
+import { CAMPAIGN_SECTIONS, calculateGlobalSpeedMultiplier, getVisibleFarmNames, validateInput } from "./validation.js?v=3.2.8";
+import { optimize, OptimizerValidationError } from "./optimizer.js?v=3.2.8";
+import { loadOptimizationSolver, optimizeCrazy } from "./crazy-optimizer.js?v=3.2.8";
+import { solveAwayAllocation } from "./away-allocation.js?v=3.2.8";
+import { shortsScheduleErrors } from "./shorts-validation.js?v=3.2.8";
+import { createSeededRandom, deriveSeed, formatRunId } from "./random.js?v=3.2.8";
+import { advanceAwayStarts, exactShorts, fillIdleShortsCrews, refineShorts, balancedShorts, polishShorts, shortsLowerBound } from "./shorts-search.js?v=3.2.8";
+import { checkFarmReservationHorizon, createFarmReservations, farmEventsForJobs, reserveUnlockedFarms } from "./farm-reservations.js?v=3.2.8";
+import { campaignPrerequisite, includeCampaignPrerequisites, isCampaignReady } from "./campaign-unlocks.js?v=3.2.8";
+import { mergeTrackedFarms, reserveTrackedFarms } from "./tracked-farms.js?v=3.2.8";
+import { awayHoursRemaining, campaignTiming } from "./away-mode.js?v=3.2.8";
 
 const MIN_HOURS = 2 / 3600;
 const MISSIONS = new Map(MISSION_DATA.map(mission => [mission.name, mission]));
@@ -172,6 +172,7 @@ export function planShorts(input, availableWorkers, onProgress = () => {}, farmR
   const polished = polishShorts(chains, initialJobs, availableWorkers, input.workers, rebalanced, onProgress, input.searchEffort === "crazy" ? 12000 : 6000, farmReservations, awayHours);
   const exact = exactShorts(chains, initialJobs, availableWorkers, input.workers, polished, 100000, farmReservations, awayHours);
   best = advanceAwayStarts(chains, initialJobs, availableWorkers, input.workers, exact, farmReservations, awayHours, solveAwayCrews, onProgress);
+  best = fillIdleShortsCrews(chains, initialJobs, availableWorkers, input.workers, best, farmReservations, awayHours);
   if (Number.isFinite(best.totalHours)) {
     const problems = shortsScheduleErrors(chains, initialJobs, availableWorkers, input.workers, best, farmReservations, awayHours);
     if (problems.length) throw new Error(`Campaign schedule failed verification: ${problems[0]}`);
@@ -191,7 +192,7 @@ export function planShorts(input, availableWorkers, onProgress = () => {}, farmR
   };
   const jobs = best.jobs.map(({ chain, work, ...job }) => job);
   const farmEvents = farmEventsForJobs(jobs, farmReservations).filter(event => best.farmBlockedAt == null || event.timeHours < best.farmBlockedAt);
-  const times = [...new Set([0, ...jobs.map(job => job.endHours)])].sort((a, b) => a - b);
+  const times = [...new Set([0, ...jobs.flatMap(job => [job.startHours, job.endHours])])].sort((a, b) => a - b);
   const steps = times.map(timeHours => ({
     timeHours,
     completed: jobs.filter(job => job.endHours === timeHours).map(job => job.name),

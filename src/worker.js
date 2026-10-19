@@ -1,6 +1,6 @@
-import { optimize, OptimizerValidationError } from "./optimizer.js?v=3.2.7";
-import { optimizeCrazy } from "./crazy-optimizer.js?v=3.2.7";
-import { optimizeShorts } from "./shorts-optimizer.js?v=3.2.7";
+import { optimize, OptimizerValidationError } from "./optimizer.js?v=3.2.8";
+import { optimizeCrazy } from "./crazy-optimizer.js?v=3.2.8";
+import { optimizeShorts } from "./shorts-optimizer.js?v=3.2.8";
 
 // Run search requests and send progress, results, or errors back to the page.
 self.addEventListener("message", async event => {

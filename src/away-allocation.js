@@ -1,4 +1,4 @@
-import { TYPE_ORDER } from "./data.js?v=3.2.7";
+import { TYPE_ORDER } from "./data.js?v=3.2.8";
 
 // Joint integer feasibility, rather than assigning the strongest workers to
 // each mission in turn. A tight-cap mission may need those workers while a

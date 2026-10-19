@@ -1,4 +1,4 @@
-import { TYPE_ORDER } from "./data.js?v=3.2.7";
+import { TYPE_ORDER } from "./data.js?v=3.2.8";
 
 // Independent replay: do not reuse dispatch or farm-horizon helpers here.
 // A valid plan must account for every crew at every launch and collection.

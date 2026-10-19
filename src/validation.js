@@ -9,8 +9,8 @@ import {
   OURO_OFF_VISIBLE_FARMS,
   OURO_REQUIRED_MODE_OPTIONS,
   TYPE_ORDER
-} from "./data.js?v=3.2.7";
-import { SECTION_REQUIREMENTS } from "./campaign-unlocks.js?v=3.2.7";
+} from "./data.js?v=3.2.8";
+import { SECTION_REQUIREMENTS } from "./campaign-unlocks.js?v=3.2.8";
 
 const DEFAULT_MODE = "Maximising Resources";
 const DEFAULT_CAMPAIGN = "C4-11";

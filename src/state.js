@@ -1,5 +1,5 @@
-import { ALL_FARM_MISSIONS, CAMPAIGN_BASE_CAPS, MATS, TYPE_ORDER } from "./data.js?v=3.2.7";
-import { CAMPAIGN_SECTIONS, createDefaultInput, getVisibleCampaignNames, validateInput } from "./validation.js?v=3.2.7";
+import { ALL_FARM_MISSIONS, CAMPAIGN_BASE_CAPS, MATS, TYPE_ORDER } from "./data.js?v=3.2.8";
+import { CAMPAIGN_SECTIONS, createDefaultInput, getVisibleCampaignNames, validateInput } from "./validation.js?v=3.2.8";
 
 export const STATE_SCHEMA_VERSION = 3;
 export const STORAGE_KEY_V3 = "cifi-farm-mission-optimizer-state-v3";

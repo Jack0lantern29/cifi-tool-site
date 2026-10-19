@@ -1,8 +1,8 @@
-import { shortsScheduleErrors } from "./shorts-validation.js?v=3.2.7";
-import { TYPE_ORDER } from "./data.js?v=3.2.7";
-import { checkFarmReservationHorizon, reserveUnlockedFarms } from "./farm-reservations.js?v=3.2.7";
-import { isCampaignReady } from "./campaign-unlocks.js?v=3.2.7";
-import { campaignTiming } from "./away-mode.js?v=3.2.7";
+import { shortsScheduleErrors } from "./shorts-validation.js?v=3.2.8";
+import { TYPE_ORDER } from "./data.js?v=3.2.8";
+import { checkFarmReservationHorizon, reserveUnlockedFarms } from "./farm-reservations.js?v=3.2.8";
+import { isCampaignReady } from "./campaign-unlocks.js?v=3.2.8";
+import { campaignTiming } from "./away-mode.js?v=3.2.8";
 
 const MIN_HOURS = 2 / 3600;
 const counts = source => Object.fromEntries(TYPE_ORDER.map(type => [type, source?.[type] || 0]));
@@ -179,6 +179,66 @@ export function advanceAwayStarts(chains, initialJobs, available, workers, incum
     if (better(candidate, best)) best = candidate;
   }
   return { ...best, awayCheck: { checkedSubsets, feasibleSubsets } };
+}
+
+// Fill idle capacity even when the final ETA is fixed by another section or
+// the return time. Keep launch times fixed and check the whole schedule after
+// changing a crew, including earlier farm unlocks and later worker commitments.
+export function fillIdleShortsCrews(chains, initialJobs, available, workers, incumbent, farmReservations = {}, awayHours = 0) {
+  if (!Number.isFinite(incumbent.totalHours)) return incumbent;
+  let best = incumbent;
+  const types = TYPE_ORDER.filter(type => workers[type].power > 0)
+    .sort((a, b) => workers[b].power - workers[a].power);
+  const pending = incumbent.jobs.filter(job => !job.alreadyRunning)
+    .sort((a, b) => a.startHours - b.startHours || b.finishHours - a.finishHours);
+  let changed;
+  do {
+    changed = false;
+    for (const source of pending) for (const type of types) {
+      const job = best.jobs.find(item => item.name === source.name);
+      const power = powerOf(job.workers, workers);
+      const slots = job.cap - sum(Object.values(job.workers));
+      const useful = Math.max(0, Math.ceil((job.work / MIN_HOURS - power) / workers[type].power));
+      if (!slots || !useful) continue;
+      const times = [...new Set([job.startHours, ...best.jobs.flatMap(item => [item.startHours, item.endHours])])]
+        .filter(time => time >= job.startHours && time < job.endHours);
+      const amounts = new Set([1]);
+      let upper = Math.min(slots, useful);
+      for (const time of times) {
+        const busy = sum(best.jobs.filter(item => item.startHours <= time && item.endHours > time).map(item => item.workers[type]));
+        const farms = sum(best.jobs.filter(item => item.endHours <= time).flatMap(item =>
+          (farmReservations[item.name] || []).filter(row => row.type === type).map(row => row.count)));
+        const spare = available[type] - busy - farms;
+        if (time === job.startHours) upper = Math.min(upper, spare);
+        amounts.add(spare);
+        // Feasibility can change when a larger crew finishes before an event.
+        // Test both sides of that boundary, including rounding at exact ties.
+        if (time > job.startHours && time >= awayHours) {
+          const boundary = Math.ceil((job.work / (time - job.startHours) - power) / workers[type].power);
+          for (const offset of [-1, 0, 1]) amounts.add(boundary + offset);
+        }
+      }
+      const proposal = amount => {
+        const updated = { ...job, workers: { ...job.workers, [type]: job.workers[type] + amount },
+          ...campaignTiming(job.startHours, Math.max(MIN_HOURS, job.work / (power + amount * workers[type].power)), awayHours) };
+        const jobs = best.jobs.map(item => item.name === job.name ? updated : item);
+        return { ...best, jobs, totalHours: Math.max(0, ...jobs.map(item => item.endHours)) };
+      };
+      amounts.add(upper);
+      // Between event boundaries, only the available count limits additions.
+      // Checking those limits avoids a loop over thousands of workers and does
+      // not assume feasibility is monotonic as the mission becomes shorter.
+      for (const amount of [...amounts].filter(value => Number.isSafeInteger(value) && value > 0 && value <= upper).sort((a, b) => b - a)) {
+        const candidate = proposal(amount);
+        if (candidate.jobs.find(item => item.name === job.name).finishHours >= job.finishHours) continue;
+        if (shortsScheduleErrors(chains, initialJobs, available, workers, candidate, farmReservations, awayHours).length) continue;
+        best = candidate;
+        changed = true;
+        break;
+      }
+    }
+  } while (changed);
+  return best;
 }
 
 // Refine actual integer crews, not just dispatch priorities. Transfers, swaps,

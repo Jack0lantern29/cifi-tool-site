@@ -1,10 +1,10 @@
-import { CAMPAIGN_SECTIONS } from "./validation.js?v=3.2.7";
-import { TYPE_ORDER } from "./data.js?v=3.2.7";
-import { SECTION_REQUIREMENTS } from "./campaign-unlocks.js?v=3.2.7";
-import { campaignStartProblem, trackerActions, trackerFreeWorkers } from "./shorts-tracker.js?v=3.2.7";
-import { formatDuration } from "./progress.js?v=3.2.7";
-import { formatLocalETA } from "./eta.js?v=3.2.7";
-import { DURATION_PATTERN, parseRemainingTime, formatRemainingTime } from "./duration-input.js?v=3.2.7";
+import { CAMPAIGN_SECTIONS } from "./validation.js?v=3.2.8";
+import { TYPE_ORDER } from "./data.js?v=3.2.8";
+import { SECTION_REQUIREMENTS } from "./campaign-unlocks.js?v=3.2.8";
+import { campaignStartProblem, trackerActions, trackerFreeWorkers } from "./shorts-tracker.js?v=3.2.8";
+import { formatDuration } from "./progress.js?v=3.2.8";
+import { formatLocalETA } from "./eta.js?v=3.2.8";
+import { DURATION_PATTERN, parseRemainingTime, formatRemainingTime } from "./duration-input.js?v=3.2.8";
 
 const node = (tag, className = "", text = "") => {
   const element = document.createElement(tag);
