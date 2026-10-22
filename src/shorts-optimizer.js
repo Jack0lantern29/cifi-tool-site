@@ -230,7 +230,7 @@ function finishShorts(input, farmResult, locked, onProgress, futureFarms = { ass
     shortsProgress: input.shortsProgress, seed, runId: formatRunId(seed),
     campaignETA: shortsPlan.totalHours, campaignAssigned: starting.reduce((sum, job) => sum + sumCounts(job.workers), 0),
     campaignCapacity: starting.reduce((sum, job) => sum + job.cap, 0),
-    solutionStatus: "best-found", modeUsed: `${input.mode} · ${input.ouroUnlocked ? "Shorts Mode" : "Campaign Planner"}`
+    solutionStatus: "best-found", modeUsed: `${input.mode} · Campaign Planner`
   };
 }
 

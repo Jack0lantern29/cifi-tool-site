@@ -259,7 +259,7 @@ function syncConditionalVisibility() {
   const ouro = byId("ouroToggle").checked;
   const campaign = byId("campaignEnabled").checked;
   const hybrid = byId("modeSelect").value === "Fragments + Resources";
-  byId("plannerModeLabel").textContent = ouro ? "Shorts Mode" : "Campaign Planner";
+  byId("plannerModeLabel").textContent = "Campaign Planner";
   byId("plannerModeHelp").textContent = ouro ? "Plan and track campaigns across C1–C4." : "Plan and track C1–C3 campaigns 1–8.";
   document.querySelectorAll(".ouro-only, .campaign-enabled-only, .hybrid-mode-only").forEach(element => {
     const visible = (!element.classList.contains("ouro-only") || ouro) &&

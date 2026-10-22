@@ -204,7 +204,7 @@ try {
   assert.equal(await evaluate(`document.querySelector('#shortsBeta').hidden`), false);
   await evaluate(`document.querySelector('#ouroToggle').click()`);
   assert.equal(await evaluate(`localStorage.getItem('cifi-shorts-tracker-v1')`), null);
-  assert.equal(await evaluate(`document.querySelector('#plannerModeLabel').textContent`), "Shorts Mode");
+  assert.equal(await evaluate(`document.querySelector('#plannerModeLabel').textContent`), "Campaign Planner");
   assert.equal(await evaluate(`document.querySelector('#shortsBeta').hidden`), false);
   assert.equal(await evaluate(`document.querySelector('#shorts-target-C4').closest('fieldset').hidden`), false);
   assert.equal(await evaluate(`document.querySelector('#shorts-target-C1').options.length`), 13);
